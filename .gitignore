@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+database/hospital.db
+frontend/out/
+frontend/.next/
+.env
+docs/report.pdf
+

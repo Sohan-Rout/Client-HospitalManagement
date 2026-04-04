@@ -1,0 +1,30 @@
+{
+  "name": "abc-hospital-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace frontend",
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "dev:backend": "nodemon backend/server.js",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "frontend:dev": "npm run dev --workspace frontend",
+    "frontend:build": "npm run build --workspace frontend",
+    "frontend:start": "npm run start --workspace frontend"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.0",
+    "express": "^4.21.1"
+    ,
+    "jsonwebtoken": "^9.0.3",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
