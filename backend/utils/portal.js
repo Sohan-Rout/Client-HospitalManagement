@@ -28,6 +28,8 @@ const EMERGENCY_STATUSES = [
   "stable",
   "closed"
 ];
+const CRITICAL_EMERGENCY_THRESHOLD = 4;
+const CRITICAL_EMERGENCY_VISIBLE_ROLES = new Set(["admin", "nurse", "super_admin"]);
 const USER_CREATION_RULES = {
   super_admin: DASHBOARD_ROLES,
   admin: ["doctor", "nurse", "receptionist", "staff", "patient"],
@@ -93,6 +95,14 @@ function normalizeSeverity(value) {
   return Math.max(1, Math.min(5, severity));
 }
 
+function normalizeMedicalField(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function compareQueueItems(left, right) {
   if (right.severity !== left.severity) {
     return right.severity - left.severity;
@@ -131,15 +141,27 @@ function getCapabilities(role) {
     canDeleteUsers: role === "super_admin",
     canViewReports: ["super_admin", "admin"].includes(role),
     canBookForOthers: ["super_admin", "admin", "receptionist"].includes(role),
-    canTriage: ["super_admin", "admin", "doctor", "nurse", "receptionist", "staff"].includes(role),
+    canTriage: ["super_admin", "admin", "doctor", "staff"].includes(role),
     canPrescribe: role === "doctor",
     canChat: ["patient", "doctor"].includes(role)
   };
 }
 
+function canViewCriticalEmergency(roleOrUser) {
+  const role = typeof roleOrUser === "string" ? roleOrUser : roleOrUser?.role;
+  return CRITICAL_EMERGENCY_VISIBLE_ROLES.has(role);
+}
+
+function canSetCriticalEmergencyLevel(roleOrUser) {
+  const role = typeof roleOrUser === "string" ? roleOrUser : roleOrUser?.role;
+  return role === "doctor";
+}
+
 function buildSummary(user, payload) {
   const unreadNotifications = payload.notifications.filter((item) => !item.isRead).length;
-  const criticalEmergencies = payload.emergencyQueue.filter((item) => item.severity >= 4).length;
+  const criticalEmergencies = payload.emergencyQueue.filter(
+    (item) => item.severity >= CRITICAL_EMERGENCY_THRESHOLD
+  ).length;
 
   if (user.role === "patient") {
     const activeAppointments = payload.appointments.filter((item) =>
@@ -185,6 +207,9 @@ function buildSummary(user, payload) {
   if (user.role === "doctor") {
     const pending = payload.appointments.filter((item) => item.status === "pending").length;
     const activePatients = new Set(payload.appointments.map((item) => item.patient.id)).size;
+    const visibleEmergencies = payload.emergencyQueue.filter(
+      (item) => !["stable", "closed"].includes(item.status)
+    ).length;
 
     return {
       headline: "Manage high-priority patients, respond in chat, and publish versioned prescriptions.",
@@ -205,9 +230,9 @@ function buildSummary(user, payload) {
           helper: "Open patient conversations"
         },
         {
-          label: "Critical emergencies",
-          value: criticalEmergencies,
-          helper: "Severity 4 and 5 across the hospital"
+          label: "Visible emergencies",
+          value: visibleEmergencies,
+          helper: "Queue items available to your role"
         }
       ],
       tasks: [
@@ -287,29 +312,29 @@ function buildSummary(user, payload) {
   }
 
   if (user.role === "nurse") {
-    const assigned = payload.emergencyQueue.filter(
-      (item) => item.assignedNurse?.id === user.id && !["stable", "closed"].includes(item.status)
-    ).length;
+    const activeAdmissions = (payload.admissions || []).filter((item) => item.status !== "discharged");
+    const medicationDoses = (payload.prescriptions || []).reduce(
+      (total, prescription) => total + (prescription.currentVersion?.medicines?.length || 0),
+      0
+    );
 
     return {
-      headline: "Support doctors with live triage visibility and rapid status updates.",
+      headline: "Stay focused on admitted patients and the medicine doses doctors have prescribed.",
       cards: [
         {
-          label: "Open emergency cases",
-          value: payload.emergencyQueue.filter((item) =>
-            !["stable", "closed"].includes(item.status)
-          ).length,
-          helper: "Visible queue items"
+          label: "Admitted patients",
+          value: activeAdmissions.length,
+          helper: "Patients currently in nurse care flow"
         },
         {
-          label: "Assigned to you",
-          value: assigned,
-          helper: "Cases needing your follow-up"
+          label: "Under observation",
+          value: activeAdmissions.filter((item) => item.status === "under_observation").length,
+          helper: "Patients awaiting closer monitoring"
         },
         {
-          label: "Critical alerts",
-          value: criticalEmergencies,
-          helper: "Severity 4 and 5 cases"
+          label: "Medicine doses",
+          value: medicationDoses,
+          helper: "Current doctor-prescribed medication lines"
         },
         {
           label: "Unread alerts",
@@ -318,16 +343,21 @@ function buildSummary(user, payload) {
         }
       ],
       tasks: [
-        "Update patient status as triage progresses.",
-        "Coordinate with assigned doctors on critical cases.",
-        "Watch the queue for FIFO changes inside equal severity bands."
+        "Review admitted patient rooms and care notes before each round.",
+        "Follow the latest prescription doses exactly as prescribed by the doctor.",
+        "Escalate dose or observation concerns back to the assigned doctor."
       ]
     };
   }
 
   if (user.role === "receptionist") {
+    const activeOpdQueue = payload.appointments.filter((item) =>
+      APPOINTMENT_ACTIVE_STATUSES.has(item.status)
+    );
+    const pendingBills = (payload.billingRecords || []).filter((item) => item.status !== "paid").length;
+
     return {
-      headline: "Register patients, book appointments, and keep front-desk flow moving.",
+      headline: "Keep front-desk flow smooth with patient bookings, OPD queue visibility, and billing follow-up.",
       cards: [
         {
           label: "Patients",
@@ -335,27 +365,25 @@ function buildSummary(user, payload) {
           helper: "Registered patient records"
         },
         {
-          label: "Pending appointments",
-          value: payload.appointments.filter((item) => item.status === "pending").length,
-          helper: "Waiting for doctor action"
+          label: "OPD queue",
+          value: activeOpdQueue.length,
+          helper: "Appointments waiting in doctor order"
         },
         {
-          label: "Open emergencies",
-          value: payload.emergencyQueue.filter((item) =>
-            !["stable", "closed"].includes(item.status)
-          ).length,
-          helper: "Active queue entries"
+          label: "Pending billing",
+          value: pendingBills,
+          helper: "Bills still awaiting payment"
         },
         {
           label: "Unread alerts",
           value: unreadNotifications,
-          helper: "Desk and queue notifications"
+          helper: "Front-desk and appointment updates"
         }
       ],
       tasks: [
         "Register walk-ins or new portal patients.",
-        "Book appointments on behalf of patients.",
-        "Coordinate emergency intake with staff and nurses."
+        "Book appointments and guide patients using the OPD queue order.",
+        "Track billing status before sending the next patient to the doctor."
       ]
     };
   }
@@ -371,9 +399,9 @@ function buildSummary(user, payload) {
         helper: "Active queue entries"
       },
       {
-        label: "Critical cases",
+        label: "Visible critical cases",
         value: criticalEmergencies,
-        helper: "Severity 4 and 5 patients"
+        helper: "Critical cases visible to your role"
       },
       {
         label: "Waiting cases",
@@ -420,6 +448,7 @@ function canEditUser(requester, targetUser, nextRole = targetUser.role) {
 module.exports = {
   APPOINTMENT_ACTIVE_STATUSES,
   APPOINTMENT_STATUSES,
+  CRITICAL_EMERGENCY_THRESHOLD,
   DASHBOARD_ROLES,
   EMERGENCY_STATUSES,
   ROLE_LABELS,
@@ -428,11 +457,14 @@ module.exports = {
   buildSummary,
   canCreateRole,
   canEditUser,
+  canSetCriticalEmergencyLevel,
+  canViewCriticalEmergency,
   compareQueueItems,
   getCapabilities,
   isValidEmail,
   isValidPhone,
   normalizeSeverity,
+  normalizeMedicalField,
   safeJsonParse,
   sanitizeUser,
   signToken,

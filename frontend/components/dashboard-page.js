@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "../lib/api";
+import { apiDownload, apiFetch } from "../lib/api";
 import {
   ROLE_CONFIGS,
   SECTION_LABELS,
+  formatCurrency,
   formatDate,
   formatDateTime,
   formatRole,
@@ -34,11 +35,45 @@ const EMERGENCY_STYLES = {
   stable: "bg-emerald-100 text-emerald-800",
   closed: "bg-slate-200 text-slate-700"
 };
+const ACTIVE_OPD_STATUSES = new Set(["pending", "accepted", "in_progress"]);
+const BILLING_STYLES = {
+  pending: "bg-amber-100 text-amber-800",
+  partial: "bg-sky-100 text-sky-800",
+  paid: "bg-emerald-100 text-emerald-800"
+};
+const SEVERITY_PRESETS = [
+  {
+    key: "critical",
+    label: "Critical",
+    range: "4-5",
+    value: 5,
+    activeClass: "border-rose-200 bg-rose-50 text-rose-700",
+    idleClass: "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-700"
+  },
+  {
+    key: "medium",
+    label: "Medium",
+    range: "2-3",
+    value: 3,
+    activeClass: "border-amber-200 bg-amber-50 text-amber-700",
+    idleClass: "border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:text-amber-700"
+  },
+  {
+    key: "low",
+    label: "Low",
+    range: "1",
+    value: 1,
+    activeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    idleClass: "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
+  }
+];
 
 export default function DashboardPage({ role }) {
   const router = useRouter();
+  const refreshDashboardRef = useRef(null);
   const [state, setState] = useState({
     loading: true,
+    refreshing: false,
     error: "",
     token: "",
     user: null,
@@ -46,7 +81,10 @@ export default function DashboardPage({ role }) {
     activeSection: "overview",
     selectedChatId: null,
     chatBody: "",
-    notice: ""
+    notice: "",
+    processingNotificationIds: [],
+    processingSeverityKeys: [],
+    downloadingPrescriptionKeys: []
   });
 
   useEffect(() => {
@@ -93,6 +131,7 @@ export default function DashboardPage({ role }) {
         setState((current) => ({
           ...current,
           loading: false,
+          refreshing: false,
           error: "",
           token: session.token,
           user: me.user,
@@ -123,6 +162,12 @@ export default function DashboardPage({ role }) {
   }, [role, router]);
 
   async function refreshDashboard(notice = "") {
+    setState((current) => ({
+      ...current,
+      refreshing: true,
+      error: ""
+    }));
+
     const session = getStoredSession();
 
     if (!session?.token) {
@@ -137,7 +182,9 @@ export default function DashboardPage({ role }) {
 
       setState((current) => ({
         ...current,
+        refreshing: false,
         token: session.token,
+        error: "",
         bootstrap: {
           ...bootstrap,
           emergencyQueue: sortEmergencyQueue(bootstrap.emergencyQueue || [])
@@ -145,15 +192,35 @@ export default function DashboardPage({ role }) {
         selectedChatId: bootstrap.chats?.some((thread) => thread.id === current.selectedChatId)
           ? current.selectedChatId
           : bootstrap.chats?.[0]?.id || null,
-        notice
+        notice,
+        processingNotificationIds: [],
+        processingSeverityKeys: [],
+        downloadingPrescriptionKeys: []
       }));
     } catch (error) {
       setState((current) => ({
         ...current,
+        refreshing: false,
         error: error.message
       }));
     }
   }
+
+  refreshDashboardRef.current = refreshDashboard;
+
+  useEffect(() => {
+    if (state.loading || !state.token || !state.user) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshDashboardRef.current?.();
+    }, 10_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [state.loading, state.token, state.user]);
 
   async function handleLogout() {
     const session = getStoredSession();
@@ -170,32 +237,144 @@ export default function DashboardPage({ role }) {
   }
 
   async function handleMarkNotificationRead(notificationId) {
+    if (state.processingNotificationIds.includes(notificationId)) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      error: "",
+      processingNotificationIds: [...current.processingNotificationIds, notificationId]
+    }));
+
     try {
       await apiFetch(`/notifications/${notificationId}/read`, {
         method: "PATCH",
         token: state.token
       });
+      await wait(220);
       await refreshDashboard("Notification updated.");
     } catch (error) {
       setState((current) => ({
         ...current,
+        processingNotificationIds: current.processingNotificationIds.filter((id) => id !== notificationId),
         error: error.message
       }));
     }
   }
 
   async function handleMarkAllNotificationsRead() {
+    const unreadIds = (state.bootstrap?.notifications || [])
+      .filter((item) => !item.isRead)
+      .map((item) => item.id);
+
+    if (!unreadIds.length) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      error: "",
+      processingNotificationIds: unreadIds
+    }));
+
     try {
       await apiFetch("/notifications/read-all", {
         method: "POST",
         token: state.token
       });
+      await wait(260);
       await refreshDashboard("All notifications marked as read.");
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        processingNotificationIds: [],
+        error: error.message
+      }));
+    }
+  }
+
+  async function handleAppointmentSeverityChange(appointmentId, severity) {
+    const key = `appointment:${appointmentId}`;
+
+    if (state.processingSeverityKeys.includes(key)) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      error: "",
+      processingSeverityKeys: [...current.processingSeverityKeys, key]
+    }));
+
+    try {
+      await apiFetch(`/appointments/${appointmentId}`, {
+        method: "PATCH",
+        token: state.token,
+        body: { severity }
+      });
+      await refreshDashboard(
+        `Appointment severity changed to ${formatSeverityTierLabel(severity)}.`
+      );
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        processingSeverityKeys: current.processingSeverityKeys.filter((item) => item !== key),
+        error: error.message
+      }));
+    }
+  }
+
+  async function handleEmergencySeverityChange(emergencyId, severity) {
+    const key = `emergency:${emergencyId}`;
+
+    if (state.processingSeverityKeys.includes(key)) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      error: "",
+      processingSeverityKeys: [...current.processingSeverityKeys, key]
+    }));
+
+    try {
+      await apiFetch(`/emergency/${emergencyId}`, {
+        method: "PATCH",
+        token: state.token,
+        body: { severity }
+      });
+      await refreshDashboard(
+        `Emergency severity changed to ${formatSeverityTierLabel(severity)}.`
+      );
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        processingSeverityKeys: current.processingSeverityKeys.filter((item) => item !== key),
+        error: error.message
+      }));
+    }
+  }
+
+  async function handleCreateAppointment(payload) {
+    try {
+      await apiFetch("/appointments", {
+        method: "POST",
+        token: state.token,
+        body: payload
+      });
+      await refreshDashboard("Appointment booked successfully.");
+      return { success: true };
     } catch (error) {
       setState((current) => ({
         ...current,
         error: error.message
       }));
+
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
@@ -234,6 +413,56 @@ export default function DashboardPage({ role }) {
     }
   }
 
+  async function handlePrescriptionDownload(prescriptionId, format, fallbackTitle) {
+    const key = `${prescriptionId}:${format}`;
+
+    if (state.downloadingPrescriptionKeys.includes(key)) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      error: "",
+      downloadingPrescriptionKeys: [...current.downloadingPrescriptionKeys, key]
+    }));
+
+    try {
+      const { blob, filename } = await apiDownload(
+        `/prescriptions/${prescriptionId}/export/${format}`,
+        { token: state.token }
+      );
+      const href = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = href;
+      link.download =
+        filename ||
+        `${sanitizeClientFilename(fallbackTitle || `prescription-${prescriptionId}`)}.${
+          format === "excel" ? "xls" : "pdf"
+        }`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(href);
+
+      setState((current) => ({
+        ...current,
+        downloadingPrescriptionKeys: current.downloadingPrescriptionKeys.filter(
+          (item) => item !== key
+        ),
+        notice: `Prescription downloaded as ${format === "excel" ? "Excel sheet" : "PDF"}.`
+      }));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        downloadingPrescriptionKeys: current.downloadingPrescriptionKeys.filter(
+          (item) => item !== key
+        ),
+        error: error.message
+      }));
+    }
+  }
+
   if (state.loading) {
     return (
       <div className="page-wrap py-12">
@@ -267,11 +496,12 @@ export default function DashboardPage({ role }) {
 
   const config = ROLE_CONFIGS[state.user.role] || ROLE_CONFIGS.patient;
   const unreadCount = (state.bootstrap.notifications || []).filter((item) => !item.isRead).length;
+  const activeSectionLabel = SECTION_LABELS[state.activeSection];
 
   return (
     <div className="page-wrap space-y-6 py-6 pb-14">
       <div className="grid gap-6 xl:grid-cols-[280px,1fr]">
-        <aside className="panel h-fit p-6">
+        <aside className="panel h-fit p-6 xl:sticky xl:top-6">
           <div className="mb-6 flex items-center gap-4">
             <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-gradient-to-br from-sky-600 to-sky-800 text-white">
               <LogoMark />
@@ -285,6 +515,24 @@ export default function DashboardPage({ role }) {
           <p className="rounded-[24px] border border-sky-100 bg-sky-50/80 p-4 text-sm leading-7 text-slate-600">
             {config.description}
           </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="auth-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
+                Department
+              </p>
+              <p className="mt-3 text-lg font-semibold text-slate-950">
+                {state.user.department || "General"}
+              </p>
+            </div>
+
+            <div className="auth-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
+                Workspace email
+              </p>
+              <p className="mt-3 break-all text-sm font-medium text-slate-700">{state.user.email}</p>
+            </div>
+          </div>
 
           <nav className="mt-6 space-y-2">
             {config.sections.map((section) => (
@@ -324,41 +572,100 @@ export default function DashboardPage({ role }) {
         </aside>
 
         <main className="space-y-6">
-          <header className="panel overflow-hidden p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <p className="eyebrow">{config.label} workspace</p>
-                <h2 className="section-title">{state.user.name}</h2>
-                <p className="section-copy">{state.bootstrap.summary.headline}</p>
+          <header className="panel overflow-hidden p-0">
+            <div className="bg-gradient-to-r from-slate-950 via-sky-900 to-cyan-600 px-6 py-6 text-white">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-sky-100/80">
+                    {config.label} workspace
+                  </p>
+                  <h2 className="text-3xl font-semibold md:text-4xl">{state.user.name}</h2>
+                  <p className="max-w-3xl text-sm leading-7 text-sky-50/85">
+                    {state.bootstrap.summary.headline}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-white/14 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
+                    {config.subtitle}
+                  </span>
+                  <button className="btn-secondary" onClick={() => refreshDashboard()} type="button">
+                    {state.refreshing ? "Refreshing..." : "Refresh"}
+                  </button>
+                  <button
+                    className="rounded-full border border-white/16 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/16"
+                    onClick={handleLogout}
+                    type="button"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="chip bg-orange-50 text-orange-700">{config.subtitle}</span>
-                <button className="btn-secondary" onClick={() => refreshDashboard()} type="button">
-                  Refresh
-                </button>
-                <button className="btn-ghost" onClick={handleLogout} type="button">
-                  Logout
-                </button>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
+                    Active section
+                  </p>
+                  <p className="mt-3 text-xl font-semibold">{activeSectionLabel}</p>
+                </div>
+                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
+                    Auto refresh
+                  </p>
+                  <p className="mt-3 text-xl font-semibold">10 sec</p>
+                </div>
+                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
+                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
+                    Workspace modules
+                  </p>
+                  <p className="mt-3 text-xl font-semibold">{config.sections.length}</p>
+                </div>
               </div>
             </div>
 
-            {state.notice ? (
-              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {state.notice}
+            <div className="space-y-5 px-6 py-6">
+              <div className="flex flex-wrap gap-2">
+                {config.sections.map((section) => (
+                  <button
+                    key={section}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      state.activeSection === section
+                        ? "bg-sky-600 text-white shadow-[0_16px_32px_rgba(22,118,210,0.18)]"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                    }`}
+                    onClick={() =>
+                      setState((current) => ({
+                        ...current,
+                        activeSection: section,
+                        notice: ""
+                      }))
+                    }
+                    type="button"
+                  >
+                    {SECTION_LABELS[section]}
+                  </button>
+                ))}
               </div>
-            ) : null}
 
-            {state.error ? (
-              <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {state.error}
-              </div>
-            ) : null}
+              {state.notice ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {state.notice}
+                </div>
+              ) : null}
+
+              {state.error ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {state.error}
+                </div>
+              ) : null}
+            </div>
           </header>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {(state.bootstrap.summary.cards || []).map((card) => (
-              <article key={card.label} className="summary-card">
+              <article key={card.label} className="summary-card relative overflow-hidden">
+                <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-sky-100/70 blur-2xl" />
                 <p className="eyebrow">{card.label}</p>
                 <h3 className="mt-3 text-4xl font-semibold text-slate-950">{card.value}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{card.helper}</p>
@@ -370,9 +677,7 @@ export default function DashboardPage({ role }) {
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="eyebrow">Section view</p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">
-                  {SECTION_LABELS[state.activeSection]}
-                </h3>
+                <h3 className="mt-2 text-2xl font-semibold text-slate-950">{activeSectionLabel}</h3>
               </div>
               <p className="max-w-2xl text-sm leading-7 text-slate-600">
                 A Medilo-inspired surface built on top of the existing hospital APIs, now without the
@@ -384,6 +689,8 @@ export default function DashboardPage({ role }) {
               activeSection={state.activeSection}
               bootstrap={state.bootstrap}
               chatBody={state.chatBody}
+              onAppointmentSeverityChange={handleAppointmentSeverityChange}
+              onCreateAppointment={handleCreateAppointment}
               onChatBodyChange={(value) =>
                 setState((current) => ({
                   ...current,
@@ -396,9 +703,14 @@ export default function DashboardPage({ role }) {
                   selectedChatId: chatId
                 }))
               }
+              onEmergencySeverityChange={handleEmergencySeverityChange}
               onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
               onMarkNotificationRead={handleMarkNotificationRead}
+              onPrescriptionDownload={handlePrescriptionDownload}
               onSendChat={handleSendChat}
+              processingNotificationIds={state.processingNotificationIds}
+              downloadingPrescriptionKeys={state.downloadingPrescriptionKeys}
+              processingSeverityKeys={state.processingSeverityKeys}
               selectedChatId={state.selectedChatId}
               user={state.user}
             />
@@ -413,24 +725,74 @@ function SectionRenderer({
   activeSection,
   bootstrap,
   chatBody,
+  onAppointmentSeverityChange,
+  onCreateAppointment,
   onChatBodyChange,
   onChatSelect,
+  onEmergencySeverityChange,
   onMarkAllNotificationsRead,
   onMarkNotificationRead,
+  onPrescriptionDownload,
   onSendChat,
+  downloadingPrescriptionKeys,
+  processingNotificationIds,
+  processingSeverityKeys,
   selectedChatId,
   user
 }) {
   if (activeSection === "overview") {
-    return <OverviewSection bootstrap={bootstrap} />;
+    return (
+      <OverviewSection
+        bootstrap={bootstrap}
+        onAppointmentSeverityChange={onAppointmentSeverityChange}
+        onCreateAppointment={onCreateAppointment}
+        onEmergencySeverityChange={onEmergencySeverityChange}
+        processingSeverityKeys={processingSeverityKeys}
+        user={user}
+      />
+    );
   }
 
   if (activeSection === "appointments") {
-    return <AppointmentsSection appointments={bootstrap.appointments || []} />;
+    return (
+      <AppointmentsSection
+        appointments={bootstrap.appointments || []}
+        doctors={bootstrap.doctors || []}
+        onCreateAppointment={onCreateAppointment}
+        onAppointmentSeverityChange={onAppointmentSeverityChange}
+        patients={bootstrap.patients || []}
+        processingSeverityKeys={processingSeverityKeys}
+        user={user}
+      />
+    );
+  }
+
+  if (activeSection === "admissions") {
+    return (
+      <AdmissionsSection
+        admissions={bootstrap.admissions || []}
+        prescriptions={bootstrap.prescriptions || []}
+      />
+    );
+  }
+
+  if (activeSection === "billing") {
+    return <BillingSection records={bootstrap.billingRecords || []} />;
   }
 
   if (activeSection === "queue") {
-    return <QueueSection queue={bootstrap.emergencyQueue || []} user={user} />;
+    return (
+      <QueueSection
+        onEmergencySeverityChange={onEmergencySeverityChange}
+        processingSeverityKeys={processingSeverityKeys}
+        queue={bootstrap.emergencyQueue || []}
+        user={user}
+      />
+    );
+  }
+
+  if (activeSection === "opd") {
+    return <OpdQueueSection appointments={bootstrap.appointments || []} />;
   }
 
   if (activeSection === "chat") {
@@ -448,7 +810,14 @@ function SectionRenderer({
   }
 
   if (activeSection === "prescriptions") {
-    return <PrescriptionsSection prescriptions={bootstrap.prescriptions || []} />;
+    return (
+      <PrescriptionsSection
+        downloadingPrescriptionKeys={downloadingPrescriptionKeys}
+        onPrescriptionDownload={onPrescriptionDownload}
+        prescriptions={bootstrap.prescriptions || []}
+        user={user}
+      />
+    );
   }
 
   if (activeSection === "users") {
@@ -469,6 +838,7 @@ function SectionRenderer({
         notifications={bootstrap.notifications || []}
         onMarkAllNotificationsRead={onMarkAllNotificationsRead}
         onMarkNotificationRead={onMarkNotificationRead}
+        processingNotificationIds={processingNotificationIds}
       />
     );
   }
@@ -476,10 +846,269 @@ function SectionRenderer({
   return <EmptyState message="This section is not available for your role." />;
 }
 
-function OverviewSection({ bootstrap }) {
+function OverviewSection({
+  bootstrap,
+  onAppointmentSeverityChange,
+  onCreateAppointment,
+  onEmergencySeverityChange,
+  processingSeverityKeys,
+  user
+}) {
   const appointments = (bootstrap.appointments || []).slice(0, 3);
   const emergencies = (bootstrap.emergencyQueue || []).slice(0, 3);
   const notifications = (bootstrap.notifications || []).slice(0, 3);
+  const admissions = (bootstrap.admissions || []).slice(0, 3);
+  const billingRecords = (bootstrap.billingRecords || []).slice(0, 3);
+  const opdGroups = buildOpdQueueGroups(bootstrap.appointments || []).slice(0, 3);
+
+  if (user.role === "nurse") {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <article className="info-card">
+            <p className="eyebrow">Recommended next steps</p>
+            <ul className="mt-4 space-y-3">
+              {(bootstrap.summary.tasks || []).map((task) => (
+                <li
+                  key={task}
+                  className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm text-slate-700"
+                >
+                  {task}
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="info-card">
+            <div className="mb-4">
+              <p className="eyebrow">Ward snapshot</p>
+              <h4 className="mt-2 text-xl font-semibold text-slate-900">Admitted patients</h4>
+            </div>
+            <div className="card-stack">
+              {admissions.length ? (
+                admissions.map((admission) => (
+                  <article
+                    key={admission.id}
+                    className="rounded-[22px] border border-slate-100 bg-white/90 px-4 py-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">{admission.patient.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {admission.roomLabel || "Ward room not assigned"}
+                        </p>
+                      </div>
+                      <span className={`status-pill ${severityClass(admission.status === "under_observation" ? 3 : 1)}`}>
+                        {admission.status.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <EmptyState message="No admitted patients are active right now." />
+              )}
+            </div>
+          </article>
+        </div>
+
+        <AdmissionsSection admissions={bootstrap.admissions || []} prescriptions={bootstrap.prescriptions || []} />
+      </div>
+    );
+  }
+
+  if (user.role === "receptionist") {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <article className="info-card">
+            <p className="eyebrow">Recommended next steps</p>
+            <ul className="mt-4 space-y-3">
+              {(bootstrap.summary.tasks || []).map((task) => (
+                <li
+                  key={task}
+                  className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm text-slate-700"
+                >
+                  {task}
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="info-card">
+            <div className="mb-4">
+              <p className="eyebrow">Live signal</p>
+              <h4 className="mt-2 text-xl font-semibold text-slate-900">Front desk focus</h4>
+            </div>
+            <div className="card-stack">
+              {billingRecords.length ? (
+                billingRecords.map((record) => (
+                  <article
+                    key={record.id}
+                    className="rounded-[22px] border border-slate-100 bg-white/90 px-4 py-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">{record.patient.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{record.category}</p>
+                      </div>
+                      <span className={`status-pill ${BILLING_STYLES[record.status] || BILLING_STYLES.pending}`}>
+                        {record.status}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-600">{formatCurrency(record.amount)}</p>
+                  </article>
+                ))
+              ) : notifications[0] ? (
+                <div className="rounded-[24px] bg-slate-950 p-5 text-white">
+                  <h4 className="text-lg font-semibold">{notifications[0].title}</h4>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{notifications[0].body}</p>
+                </div>
+              ) : (
+                <EmptyState message="No front-desk alerts are waiting right now." />
+              )}
+            </div>
+          </article>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <article className="info-card xl:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="eyebrow">Upcoming OPD queue</p>
+                <h4 className="mt-2 text-xl font-semibold text-slate-900">Next patient by doctor</h4>
+              </div>
+              <span className="chip">{opdGroups.length} doctors</span>
+            </div>
+            <div className="card-stack">
+              {opdGroups.length ? (
+                opdGroups.map((group) => (
+                  <OpdQueueCard group={group} key={group.doctor.id} />
+                ))
+              ) : (
+                <EmptyState message="No OPD queue is active right now." />
+              )}
+            </div>
+          </article>
+
+          <article className="info-card">
+            <div className="mb-4">
+              <p className="eyebrow">Billing pulse</p>
+              <h4 className="mt-2 text-xl font-semibold text-slate-900">Pending collections</h4>
+            </div>
+            <div className="card-stack">
+              {billingRecords.length ? (
+                billingRecords.map((record) => (
+                  <BillingCard key={record.id} record={record} />
+                ))
+              ) : (
+                <EmptyState message="No billing records are waiting right now." />
+              )}
+            </div>
+          </article>
+        </div>
+      </div>
+    );
+  }
+
+  if (["patient", "receptionist"].includes(user.role)) {
+    return (
+      <div className="space-y-6">
+        <AppointmentBookingCard
+          doctors={bootstrap.doctors || []}
+          onCreateAppointment={onCreateAppointment}
+          patients={bootstrap.patients || []}
+          user={user}
+        />
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <article className="info-card">
+            <p className="eyebrow">Recommended next steps</p>
+            <ul className="mt-4 space-y-3">
+              {(bootstrap.summary.tasks || []).map((task) => (
+                <li
+                  key={task}
+                  className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm text-slate-700"
+                >
+                  {task}
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="info-card">
+            <p className="eyebrow">Live signal</p>
+            {notifications[0] ? (
+              <div className="mt-4 rounded-[24px] bg-slate-950 p-5 text-white">
+                <h4 className="text-lg font-semibold">{notifications[0].title}</h4>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{notifications[0].body}</p>
+              </div>
+            ) : (
+              <EmptyState message="No alerts are waiting right now." />
+            )}
+          </article>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <article className="info-card xl:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="eyebrow">Recent appointments</p>
+                <h4 className="mt-2 text-xl font-semibold text-slate-900">Clinical schedule</h4>
+              </div>
+              <span className="chip">{appointments.length} items</span>
+            </div>
+            <div className="card-stack">
+              {appointments.length ? (
+                appointments.map((appointment) => (
+                  <AppointmentCard
+                    appointment={appointment}
+                    key={appointment.id}
+                    onSeverityChange={onAppointmentSeverityChange}
+                    processingSeverityKeys={processingSeverityKeys}
+                    user={user}
+                  />
+                ))
+              ) : (
+                <EmptyState message="No appointments are available." />
+              )}
+            </div>
+          </article>
+
+          <article className="info-card">
+            <div className="mb-4">
+              <p className="eyebrow">{user.role === "receptionist" ? "OPD pulse" : "Queue pulse"}</p>
+              <h4 className="mt-2 text-xl font-semibold text-slate-900">
+                {user.role === "receptionist" ? "Upcoming OPD flow" : "Emergency priority board"}
+              </h4>
+            </div>
+            <div className="card-stack">
+              {user.role === "receptionist" ? (
+                buildOpdQueueGroups(bootstrap.appointments || []).length ? (
+                  buildOpdQueueGroups(bootstrap.appointments || [])
+                    .slice(0, 3)
+                    .map((group) => <OpdQueueCard group={group} key={group.doctor.id} />)
+                ) : (
+                  <EmptyState message="No OPD queue is active right now." />
+                )
+              ) : emergencies.length ? (
+                emergencies.map((entry) => (
+                  <EmergencyCard
+                    entry={entry}
+                    key={entry.id}
+                    onSeverityChange={onEmergencySeverityChange}
+                    processingSeverityKeys={processingSeverityKeys}
+                    user={user}
+                  />
+                ))
+              ) : (
+                <EmptyState message="No emergency cases are visible for this role." />
+              )}
+            </div>
+          </article>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -523,7 +1152,13 @@ function OverviewSection({ bootstrap }) {
           <div className="card-stack">
             {appointments.length ? (
               appointments.map((appointment) => (
-                <AppointmentCard appointment={appointment} key={appointment.id} />
+                <AppointmentCard
+                  appointment={appointment}
+                  key={appointment.id}
+                  onSeverityChange={onAppointmentSeverityChange}
+                  processingSeverityKeys={processingSeverityKeys}
+                  user={user}
+                />
               ))
             ) : (
               <EmptyState message="No appointments are available." />
@@ -538,7 +1173,15 @@ function OverviewSection({ bootstrap }) {
           </div>
           <div className="card-stack">
             {emergencies.length ? (
-              emergencies.map((entry) => <EmergencyCard entry={entry} key={entry.id} />)
+              emergencies.map((entry) => (
+                <EmergencyCard
+                  entry={entry}
+                  key={entry.id}
+                  onSeverityChange={onEmergencySeverityChange}
+                  processingSeverityKeys={processingSeverityKeys}
+                  user={user}
+                />
+              ))
             ) : (
               <EmptyState message="No emergency cases are visible for this role." />
             )}
@@ -549,21 +1192,381 @@ function OverviewSection({ bootstrap }) {
   );
 }
 
-function AppointmentsSection({ appointments }) {
-  if (!appointments.length) {
-    return <EmptyState message="No appointments matched this workspace." />;
-  }
-
+function AppointmentsSection({
+  appointments,
+  doctors,
+  onCreateAppointment,
+  onAppointmentSeverityChange,
+  patients,
+  processingSeverityKeys,
+  user
+}) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {appointments.map((appointment) => (
-        <AppointmentCard appointment={appointment} key={appointment.id} detailed />
-      ))}
+    <div className="space-y-6">
+      {["patient", "receptionist"].includes(user.role) ? (
+        <AppointmentBookingCard
+          doctors={doctors}
+          onCreateAppointment={onCreateAppointment}
+          patients={patients}
+          user={user}
+        />
+      ) : null}
+
+      {appointments.length ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {appointments.map((appointment) => (
+            <AppointmentCard
+              appointment={appointment}
+              key={appointment.id}
+              detailed={user.role !== "receptionist"}
+              onSeverityChange={onAppointmentSeverityChange}
+              processingSeverityKeys={processingSeverityKeys}
+              user={user}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState message="No appointments matched this workspace." />
+      )}
     </div>
   );
 }
 
-function QueueSection({ queue, user }) {
+function AppointmentBookingCard({ doctors, onCreateAppointment, patients, user }) {
+  const specializationOptions = getDoctorSpecializations(doctors);
+  const [form, setForm] = useState(() => ({
+    medicalField: String(doctors?.[0]?.specialization || doctors?.[0]?.department || "").trim(),
+    doctorId: String(doctors?.[0]?.id || ""),
+    patientId: String(patients?.[0]?.id || ""),
+    appointmentDate: "",
+    reason: "",
+    symptoms: "",
+    patientNotes: "",
+    severity: "3"
+  }));
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+  const filteredDoctors = doctors.filter((doctor) => {
+    if (!form.medicalField) {
+      return true;
+    }
+
+    return normalizeFieldLabel(doctor.specialization || doctor.department) ===
+      normalizeFieldLabel(form.medicalField);
+  });
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      medicalField:
+        current.medicalField ||
+        String(doctors?.[0]?.specialization || doctors?.[0]?.department || "").trim(),
+      doctorId:
+        current.doctorId ||
+        String(doctors?.[0]?.id || ""),
+      patientId: current.patientId || String(patients?.[0]?.id || "")
+    }));
+  }, [doctors, patients]);
+
+  useEffect(() => {
+    if (
+      form.doctorId &&
+      filteredDoctors.some((doctor) => String(doctor.id) === String(form.doctorId))
+    ) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      doctorId: String(filteredDoctors?.[0]?.id || "")
+    }));
+  }, [filteredDoctors, form.doctorId]);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage({ type: "", text: "" });
+
+    const payload = {
+      doctorId: Number(form.doctorId),
+      appointmentDate: form.appointmentDate,
+      medicalField: form.medicalField,
+      reason: form.reason.trim(),
+      symptoms: form.symptoms.trim(),
+      patientNotes: form.patientNotes.trim(),
+      severity: Number(form.severity)
+    };
+
+    if (user.role === "receptionist") {
+      payload.patientId = Number(form.patientId);
+    }
+
+    const response = await onCreateAppointment?.(payload);
+
+    if (response?.success) {
+      setMessage({
+        type: "success",
+        text: "Appointment booked successfully."
+      });
+      setForm((current) => ({
+        ...current,
+        appointmentDate: "",
+        reason: "",
+        symptoms: "",
+        patientNotes: "",
+        severity: "3"
+      }));
+    } else {
+      setMessage({
+        type: "error",
+        text: response?.error || "Unable to book the appointment."
+      });
+    }
+
+    setBusy(false);
+  }
+
+  return (
+    <article className="info-card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">Book appointment</p>
+          <h4 className="mt-2 text-2xl font-semibold text-slate-900">
+            {user.role === "receptionist"
+              ? "Create a patient appointment from the front desk"
+              : "Book your next doctor visit"}
+          </h4>
+        </div>
+        <span className="chip bg-sky-50 text-sky-700">Visible here now</span>
+      </div>
+
+      {message.text ? (
+        <div
+          className={`mt-5 rounded-[22px] border px-4 py-3 text-sm ${
+            message.type === "error"
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
+      <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Medical field</label>
+            <select
+              className="select-field"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  medicalField: event.target.value
+                }))
+              }
+              value={form.medicalField}
+            >
+              <option value="">Select field</option>
+              {specializationOptions.map((field) => (
+                <option key={field} value={field}>
+                  {field}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {user.role === "receptionist" ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Patient</label>
+              <select
+                className="select-field"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    patientId: event.target.value
+                  }))
+                }
+                value={form.patientId}
+              >
+                <option value="">Select patient</option>
+                {patients.map((patient) => (
+                  <option key={patient.id} value={patient.id}>
+                    {patient.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Doctor</label>
+            <select
+              className="select-field"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  doctorId: event.target.value
+                }))
+              }
+              value={form.doctorId}
+            >
+              <option value="">Select doctor</option>
+              {filteredDoctors.map((doctor) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.name} {doctor.specialization ? `- ${doctor.specialization}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Appointment date & time</label>
+            <input
+              className="input-field"
+              min={new Date().toISOString().slice(0, 16)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  appointmentDate: event.target.value
+                }))
+              }
+              type="datetime-local"
+              value={form.appointmentDate}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Severity</label>
+            <select
+              className="select-field"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  severity: event.target.value
+                }))
+              }
+              value={form.severity}
+            >
+              <option value="1">Low</option>
+              <option value="3">Medium</option>
+              <option value="5">Critical</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-700">Reason</label>
+          <input
+            className="input-field"
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                reason: event.target.value
+              }))
+            }
+            placeholder="Cardiology review, follow-up, consultation..."
+            value={form.reason}
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Symptoms</label>
+            <textarea
+              className="textarea-field"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  symptoms: event.target.value
+                }))
+              }
+              placeholder="Describe the symptoms"
+              value={form.symptoms}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Patient notes</label>
+            <textarea
+              className="textarea-field"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  patientNotes: event.target.value
+                }))
+              }
+              placeholder="Extra front-desk or patient details"
+              value={form.patientNotes}
+            />
+          </div>
+        </div>
+
+        <button className="btn-primary" disabled={busy} type="submit">
+          {busy ? "Booking..." : "Book appointment"}
+        </button>
+      </form>
+    </article>
+  );
+}
+
+function AdmissionsSection({ admissions, prescriptions }) {
+  if (!admissions.length) {
+    return <EmptyState message="No admitted patients are available in this workspace." />;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {admissions.map((admission) => {
+        const prescription = getPrescriptionByPatient(prescriptions, admission.patient.id);
+        const medicines = prescription?.currentVersion?.medicines || [];
+
+        return (
+          <article className="info-card" key={admission.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="eyebrow">Ward room {admission.roomLabel || "TBD"}</p>
+                <h4 className="mt-2 text-xl font-semibold text-slate-900">
+                  {admission.patient.name}
+                </h4>
+              </div>
+              <span className={`status-pill ${severityClass(admission.status === "under_observation" ? 3 : 1)}`}>
+                {admission.status.replace(/_/g, " ")}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <InfoRow label="Doctor" value={admission.doctor.name} />
+              <InfoRow label="Admitted at" value={formatDateTime(admission.admittedAt)} />
+              <InfoRow label="Visit reason" value={admission.appointment?.reason || "Ward follow-up"} />
+              <InfoRow label="Contact" value={admission.patient.phone} />
+            </div>
+
+            <div className="mt-5 rounded-[22px] border border-slate-100 bg-white/90 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Care notes
+              </p>
+              <p className="mt-2 text-sm leading-7 text-slate-700">
+                {admission.careNotes || "No care notes added yet."}
+              </p>
+            </div>
+
+            <div className="mt-5 rounded-[22px] border border-slate-100 bg-slate-50/80 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  Doctor-prescribed doses
+                </p>
+                {prescription ? <span className="chip">v{prescription.currentVersionNumber}</span> : null}
+              </div>
+              <MedicineList medicines={medicines} />
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function QueueSection({ onEmergencySeverityChange, processingSeverityKeys, queue, user }) {
   if (!queue.length) {
     return (
       <EmptyState
@@ -579,7 +1582,29 @@ function QueueSection({ queue, user }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {queue.map((entry) => (
-        <EmergencyCard entry={entry} key={entry.id} />
+        <EmergencyCard
+          entry={entry}
+          key={entry.id}
+          onSeverityChange={onEmergencySeverityChange}
+          processingSeverityKeys={processingSeverityKeys}
+          user={user}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OpdQueueSection({ appointments }) {
+  const groups = buildOpdQueueGroups(appointments);
+
+  if (!groups.length) {
+    return <EmptyState message="No OPD queue is active right now." />;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {groups.map((group) => (
+        <OpdQueueCard group={group} key={group.doctor.id} />
       ))}
     </div>
   );
@@ -685,7 +1710,12 @@ function ChatSection({
   );
 }
 
-function PrescriptionsSection({ prescriptions }) {
+function PrescriptionsSection({
+  downloadingPrescriptionKeys,
+  onPrescriptionDownload,
+  prescriptions,
+  user
+}) {
   if (!prescriptions.length) {
     return <EmptyState message="No prescriptions are available for this workspace." />;
   }
@@ -701,7 +1731,37 @@ function PrescriptionsSection({ prescriptions }) {
                 {prescription.title || "Prescription"}
               </h4>
             </div>
-            <span className="chip">v{prescription.currentVersionNumber}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="chip">v{prescription.currentVersionNumber}</span>
+              {user.role === "patient" ? (
+                <>
+                  <button
+                    className="btn-ghost rounded-full border border-slate-200 bg-white"
+                    disabled={downloadingPrescriptionKeys.includes(`${prescription.id}:excel`)}
+                    onClick={() =>
+                      onPrescriptionDownload?.(prescription.id, "excel", prescription.title)
+                    }
+                    type="button"
+                  >
+                    {downloadingPrescriptionKeys.includes(`${prescription.id}:excel`)
+                      ? "Downloading Excel..."
+                      : "Download Excel"}
+                  </button>
+                  <button
+                    className="btn-ghost rounded-full border border-slate-200 bg-white"
+                    disabled={downloadingPrescriptionKeys.includes(`${prescription.id}:pdf`)}
+                    onClick={() =>
+                      onPrescriptionDownload?.(prescription.id, "pdf", prescription.title)
+                    }
+                    type="button"
+                  >
+                    {downloadingPrescriptionKeys.includes(`${prescription.id}:pdf`)
+                      ? "Downloading PDF..."
+                      : "Download PDF"}
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -790,6 +1850,20 @@ function PatientsSection({ patients }) {
   );
 }
 
+function BillingSection({ records }) {
+  if (!records.length) {
+    return <EmptyState message="No billing records are available for this workspace." />;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {records.map((record) => (
+        <BillingCard key={record.id} record={record} detailed />
+      ))}
+    </div>
+  );
+}
+
 function ReportsSection({ reports }) {
   if (!reports) {
     return <EmptyState message="Reporting is not available for this role." />;
@@ -857,11 +1931,14 @@ function ReportsSection({ reports }) {
 function NotificationsSection({
   notifications,
   onMarkAllNotificationsRead,
-  onMarkNotificationRead
+  onMarkNotificationRead,
+  processingNotificationIds
 }) {
   if (!notifications.length) {
     return <EmptyState message="No notifications are waiting right now." />;
   }
+
+  const hasUnread = notifications.some((notification) => !notification.isRead);
 
   return (
     <div className="space-y-5">
@@ -870,14 +1947,27 @@ function NotificationsSection({
           <p className="eyebrow">Alert stream</p>
           <h4 className="mt-2 text-xl font-semibold text-slate-900">Notification center</h4>
         </div>
-        <button className="btn-secondary" onClick={onMarkAllNotificationsRead} type="button">
+        <button
+          className={`btn-secondary ${processingNotificationIds.length ? "animate-pulse opacity-70" : ""}`}
+          disabled={!hasUnread || Boolean(processingNotificationIds.length)}
+          onClick={onMarkAllNotificationsRead}
+          type="button"
+        >
           Mark all as read
         </button>
       </div>
 
       <div className="grid gap-4">
-        {notifications.map((notification) => (
-          <article className="info-card" key={notification.id}>
+        {notifications.map((notification) => {
+          const isProcessing = processingNotificationIds.includes(notification.id);
+
+          return (
+          <article
+            className={`info-card transition duration-300 ${
+              isProcessing ? "translate-x-2 scale-[0.98] opacity-55" : "opacity-100"
+            }`}
+            key={notification.id}
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -898,22 +1988,36 @@ function NotificationsSection({
 
               {!notification.isRead ? (
                 <button
-                  className="btn-ghost rounded-full border border-slate-200 bg-white"
+                  className={`btn-ghost rounded-full border border-slate-200 bg-white ${
+                    isProcessing ? "animate-pulse" : ""
+                  }`}
+                  disabled={isProcessing}
                   onClick={() => onMarkNotificationRead(notification.id)}
                   type="button"
                 >
-                  Mark read
+                  {isProcessing ? "Reading..." : "Mark read"}
                 </button>
               ) : null}
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function AppointmentCard({ appointment, detailed = false }) {
+function AppointmentCard({
+  appointment,
+  detailed = false,
+  onSeverityChange,
+  processingSeverityKeys = [],
+  user
+}) {
+  const canEditSeverity = user?.role === "doctor";
+  const severityKey = `appointment:${appointment.id}`;
+  const isUpdatingSeverity = processingSeverityKeys.includes(severityKey);
+
   return (
     <article className="info-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -948,11 +2052,24 @@ function AppointmentCard({ appointment, detailed = false }) {
           </p>
         </div>
       ) : null}
+
+      {canEditSeverity ? (
+        <SeverityControl
+          currentSeverity={appointment.severity}
+          isBusy={isUpdatingSeverity}
+          label="Doctor severity control"
+          onChange={(severity) => onSeverityChange?.(appointment.id, severity)}
+        />
+      ) : null}
     </article>
   );
 }
 
-function EmergencyCard({ entry }) {
+function EmergencyCard({ entry, onSeverityChange, processingSeverityKeys = [], user }) {
+  const canEditSeverity = user?.role === "doctor";
+  const severityKey = `emergency:${entry.id}`;
+  const isUpdatingSeverity = processingSeverityKeys.includes(severityKey);
+
   return (
     <article className="info-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -974,6 +2091,143 @@ function EmergencyCard({ entry }) {
         <InfoRow label="Assigned doctor" value={entry.assignedDoctor?.name || "Not assigned"} />
         <InfoRow label="Assigned nurse" value={entry.assignedNurse?.name || "Not assigned"} />
       </div>
+
+      {canEditSeverity ? (
+        <SeverityControl
+          currentSeverity={entry.severity}
+          isBusy={isUpdatingSeverity}
+          label="Doctor severity control"
+          onChange={(severity) => onSeverityChange?.(entry.id, severity)}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+function SeverityControl({ currentSeverity, isBusy, label, onChange }) {
+  const activeTier = getSeverityTierKey(currentSeverity);
+
+  return (
+    <div className="mt-5 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+          {label}
+        </p>
+        <span className={`status-pill ${severityClass(currentSeverity)}`}>
+          {formatSeverityTierLabel(currentSeverity)}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {SEVERITY_PRESETS.map((preset) => {
+          const isActive = activeTier === preset.key;
+
+          return (
+            <button
+              key={preset.key}
+              className={`rounded-[18px] border px-4 py-3 text-left text-sm font-semibold transition ${
+                isActive ? preset.activeClass : preset.idleClass
+              } ${isBusy ? "opacity-70" : ""}`}
+              disabled={isBusy || isActive}
+              onClick={() => onChange?.(preset.value)}
+              type="button"
+            >
+              <span className="block">{preset.label}</span>
+              <span className="mt-1 block text-xs font-medium opacity-75">{preset.range}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-xs leading-6 text-slate-500">
+        {isBusy
+          ? "Saving the new severity level..."
+          : "Doctors can update patient severity directly from the dashboard."}
+      </p>
+    </div>
+  );
+}
+
+function OpdQueueCard({ group }) {
+  return (
+    <article className="info-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow">{group.doctor.specialization || "General OPD"}</p>
+          <h4 className="mt-2 text-xl font-semibold text-slate-900">{group.doctor.name}</h4>
+        </div>
+        <span className="chip">
+          {group.queue.length} patient{group.queue.length > 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="mt-4 rounded-[22px] border border-sky-100 bg-sky-50/80 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-700">
+          Next patient
+        </p>
+        <p className="mt-2 text-lg font-semibold text-slate-900">{group.next.patient.name}</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Queue #{group.next.queueRank || 1} · {formatDateTime(group.next.appointmentDate)}
+        </p>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {group.queue.map((appointment) => (
+          <div
+            className="rounded-[22px] border border-slate-100 bg-white/90 px-4 py-4"
+            key={appointment.id}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-slate-900">{appointment.patient.name}</p>
+                <p className="mt-1 text-sm text-slate-500">{appointment.reason}</p>
+              </div>
+              <span className="chip">
+                {appointment.queueRank === 1 ? "Next" : `Queue #${appointment.queueRank}`}
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              Slot: {formatDateTime(appointment.appointmentDate)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function BillingCard({ record, detailed = false }) {
+  return (
+    <article className="info-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow">{record.category}</p>
+          <h4 className="mt-2 text-xl font-semibold text-slate-900">{record.patient.name}</h4>
+        </div>
+        <span className={`status-pill ${BILLING_STYLES[record.status] || BILLING_STYLES.pending}`}>
+          {record.status}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <InfoRow label="Amount" value={formatCurrency(record.amount)} />
+        <InfoRow label="Due date" value={formatDateTime(record.dueDate)} />
+        <InfoRow label="Doctor" value={record.appointment?.doctorName || "Not assigned"} />
+        <InfoRow label="Appointment" value={record.appointment?.reason || "Front desk charge"} />
+      </div>
+
+      {detailed ? (
+        <div className="mt-5 rounded-[22px] border border-slate-100 bg-white/90 p-4">
+          <p className="text-sm leading-7 text-slate-600">
+            <span className="font-semibold text-slate-900">Created by:</span>{" "}
+            {record.createdBy.name}
+          </p>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            <span className="font-semibold text-slate-900">Notes:</span>{" "}
+            {record.notes || "No billing notes added."}
+          </p>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -1011,6 +2265,14 @@ function getSelectedChat(chats, selectedChatId) {
 }
 
 function severityClass(value) {
+  if (value === "under_observation") {
+    return "bg-amber-100 text-amber-800";
+  }
+
+  if (value === "admitted") {
+    return "bg-emerald-100 text-emerald-800";
+  }
+
   const severity = Number(value || 1);
 
   if (severity >= 4) {
@@ -1022,4 +2284,125 @@ function severityClass(value) {
   }
 
   return "bg-emerald-100 text-emerald-800";
+}
+
+function getSeverityTierKey(value) {
+  const severity = Number(value || 1);
+
+  if (severity >= 4) {
+    return "critical";
+  }
+
+  if (severity >= 2) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function formatSeverityTierLabel(value) {
+  const tier = getSeverityTierKey(value);
+
+  if (tier === "critical") {
+    return "Critical (4-5)";
+  }
+
+  if (tier === "medium") {
+    return "Medium (2-3)";
+  }
+
+  return "Low (1)";
+}
+
+function getPrescriptionByPatient(prescriptions, patientId) {
+  return (prescriptions || []).find((item) => item.patient.id === patientId) || null;
+}
+
+function buildOpdQueueGroups(appointments) {
+  const groups = new Map();
+
+  (appointments || [])
+    .filter((appointment) => ACTIVE_OPD_STATUSES.has(appointment.status))
+    .forEach((appointment) => {
+      const current = groups.get(appointment.doctor.id) || {
+        doctor: appointment.doctor,
+        queue: []
+      };
+
+      current.queue.push(appointment);
+      groups.set(appointment.doctor.id, current);
+    });
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      queue: group.queue
+        .slice()
+        .sort((left, right) => {
+          if (Number(left.queueRank || 999) !== Number(right.queueRank || 999)) {
+            return Number(left.queueRank || 999) - Number(right.queueRank || 999);
+          }
+
+          return new Date(left.appointmentDate) - new Date(right.appointmentDate);
+        })
+    }))
+    .map((group) => ({
+      ...group,
+      next: group.queue[0]
+    }))
+    .sort((left, right) => new Date(left.next.appointmentDate) - new Date(right.next.appointmentDate));
+}
+
+function MedicineList({ medicines }) {
+  if (!medicines.length) {
+    return (
+      <p className="mt-3 text-sm leading-7 text-slate-500">
+        No active prescription doses are available yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-3">
+      {medicines.map((medicine, index) => (
+        <div
+          className="rounded-[20px] border border-slate-100 bg-white px-4 py-3"
+          key={`${medicine.name}-${index}`}
+        >
+          <p className="font-semibold text-slate-900">{medicine.name}</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {medicine.dosage || "Dose not specified"} · {medicine.timing || "Timing not specified"}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function wait(duration) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, duration);
+  });
+}
+
+function getDoctorSpecializations(doctors) {
+  return [...new Set((doctors || [])
+    .map((doctor) => String(doctor.specialization || doctor.department || "").trim())
+    .filter(Boolean))].sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeFieldLabel(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function sanitizeClientFilename(value) {
+  return String(value || "prescription")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "prescription";
 }

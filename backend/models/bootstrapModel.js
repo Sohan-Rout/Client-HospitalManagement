@@ -1,4 +1,6 @@
+const { fetchAdmissions } = require("./admissionModel");
 const { fetchAppointments } = require("./appointmentModel");
+const { fetchBillingRecords } = require("./billingModel");
 const { fetchChatThreads } = require("./chatModel");
 const { fetchEmergencyCases } = require("./emergencyModel");
 const { fetchNotifications } = require("./notificationModel");
@@ -15,16 +17,18 @@ const {
 
 async function buildBootstrapPayload(currentUser) {
   const doctors = await fetchDoctors();
-  const patients = ["doctor", "nurse", "receptionist", "staff", "admin", "super_admin"].includes(
+  const patients = ["doctor", "receptionist", "staff", "admin", "super_admin"].includes(
     currentUser.role
   )
     ? await fetchPatients()
     : [];
   const users = await fetchUsers(currentUser);
   const appointments = await fetchAppointments(currentUser);
-  const emergencyQueue = await fetchEmergencyCases(currentUser);
+  const admissions = await fetchAdmissions(currentUser);
+  const emergencyQueue = currentUser.role === "nurse" ? [] : await fetchEmergencyCases(currentUser);
   const chats = await fetchChatThreads(currentUser);
   const prescriptions = await fetchPrescriptions(currentUser);
+  const billingRecords = await fetchBillingRecords(currentUser);
   const notifications = await fetchNotifications(currentUser);
   const reports = ["super_admin", "admin"].includes(currentUser.role)
     ? await buildReports()
@@ -36,19 +40,23 @@ async function buildBootstrapPayload(currentUser) {
       users,
       doctors,
       patients,
+      admissions,
       appointments,
       emergencyQueue,
       chats,
       prescriptions,
+      billingRecords,
       notifications
     }),
     doctors,
     patients,
+    admissions,
     users,
     appointments,
     emergencyQueue,
     chats,
     prescriptions,
+    billingRecords,
     notifications,
     reports,
     capabilities: getCapabilities(currentUser.role),

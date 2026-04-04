@@ -1,12 +1,30 @@
 const { all, get, run } = require("../config/db");
+const {
+  CRITICAL_EMERGENCY_THRESHOLD,
+  canViewCriticalEmergency
+} = require("../utils/portal");
 
 async function fetchEmergencyCases(currentUser) {
+  if (currentUser.role === "receptionist") {
+    return [];
+  }
+
   const where = [];
   const params = [];
 
   if (currentUser.role === "patient") {
     where.push("e.patient_user_id = ?");
     params.push(currentUser.id);
+  }
+
+  if (currentUser.role === "doctor") {
+    where.push("e.assigned_doctor_id = ?");
+    params.push(currentUser.id);
+  }
+
+  if (!canViewCriticalEmergency(currentUser)) {
+    where.push("e.severity < ?");
+    params.push(CRITICAL_EMERGENCY_THRESHOLD);
   }
 
   const rows = await all(
@@ -76,6 +94,7 @@ async function getEmergencyCaseById(emergencyId) {
       patient_user_id,
       assigned_doctor_id,
       assigned_nurse_id,
+      patient_name,
       severity,
       status,
       notes

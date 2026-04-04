@@ -55,6 +55,17 @@ function all(sql, params = []) {
   });
 }
 
+async function ensureTableColumn(tableName, columnName, definition) {
+  const columns = await all(`PRAGMA table_info(${tableName})`);
+  const exists = columns.some((column) => column.name === columnName);
+
+  if (exists) {
+    return;
+  }
+
+  await run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
 function nowIso(offsetMinutes = 0) {
   return new Date(Date.now() + offsetMinutes * 60 * 1000).toISOString();
 }
@@ -495,6 +506,114 @@ async function seedPortalData() {
     [prescriptionInsert.id, completedAppointmentId]
   );
 
+  const activeAdmissions = [
+    {
+      patientEmail: "patient@abchospital.com",
+      appointmentId: completedAppointmentId,
+      admittedByDoctorEmail: "dr.nair@abchospital.com",
+      roomLabel: "Ward B-12",
+      status: "admitted",
+      careNotes: "Support knee rehabilitation, monitor pain score, and confirm evening medication dose.",
+      admittedAt: nowIso(-6200)
+    },
+    {
+      patientEmail: "sara.patient@abchospital.com",
+      appointmentId:
+        appointmentIds[
+          "sara.patient@abchospital.com:doctor@abchospital.com:Consultation for irregular heartbeat"
+        ],
+      admittedByDoctorEmail: "doctor@abchospital.com",
+      roomLabel: "Observation 03",
+      status: "under_observation",
+      careNotes: "Monitor palpitations, maintain hydration, and prepare for cardiology review.",
+      admittedAt: nowIso(-180)
+    }
+  ];
+
+  for (const admission of activeAdmissions) {
+    await run(
+      `INSERT INTO portal_admissions (
+        patient_id,
+        appointment_id,
+        admitted_by_doctor_id,
+        room_label,
+        status,
+        care_notes,
+        admitted_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userIds[admission.patientEmail],
+        admission.appointmentId,
+        userIds[admission.admittedByDoctorEmail],
+        admission.roomLabel,
+        admission.status,
+        admission.careNotes,
+        admission.admittedAt,
+        admission.admittedAt
+      ]
+    );
+  }
+
+  const billingRecords = [
+    {
+      patientEmail: "patient@abchospital.com",
+      appointmentId: completedAppointmentId,
+      createdByEmail: "receptionist@abchospital.com",
+      category: "Orthopedic consultation",
+      amount: 1850,
+      status: "paid",
+      dueDate: nowIso(-7000),
+      paidAt: nowIso(-6900),
+      notes: "Cleared at the front desk after follow-up."
+    },
+    {
+      patientEmail: "sara.patient@abchospital.com",
+      appointmentId:
+        appointmentIds[
+          "sara.patient@abchospital.com:doctor@abchospital.com:Consultation for irregular heartbeat"
+        ],
+      createdByEmail: "receptionist@abchospital.com",
+      category: "Cardiology OPD booking",
+      amount: 2400,
+      status: "pending",
+      dueDate: nowIso(360),
+      paidAt: null,
+      notes: "Collect billing before consultation starts."
+    }
+  ];
+
+  for (const bill of billingRecords) {
+    await run(
+      `INSERT INTO portal_bills (
+        patient_id,
+        appointment_id,
+        created_by_user_id,
+        category,
+        amount,
+        status,
+        due_date,
+        paid_at,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userIds[bill.patientEmail],
+        bill.appointmentId,
+        userIds[bill.createdByEmail],
+        bill.category,
+        bill.amount,
+        bill.status,
+        bill.dueDate,
+        bill.paidAt,
+        bill.notes,
+        bill.dueDate,
+        bill.paidAt || bill.dueDate
+      ]
+    );
+  }
+
   const notifications = [
     {
       userEmail: "doctor@abchospital.com",
@@ -558,6 +677,153 @@ async function seedPortalData() {
   }
 }
 
+async function seedOperationalExtensions() {
+  const admissions = await get("SELECT COUNT(*) AS total FROM portal_admissions");
+
+  if (!admissions?.total) {
+    const patient = await get("SELECT id FROM portal_users WHERE email = ?", ["patient@abchospital.com"]);
+    const sara = await get("SELECT id FROM portal_users WHERE email = ?", ["sara.patient@abchospital.com"]);
+    const doctor = await get("SELECT id FROM portal_users WHERE email = ?", ["doctor@abchospital.com"]);
+    const drNair = await get("SELECT id FROM portal_users WHERE email = ?", ["dr.nair@abchospital.com"]);
+    const orthopedicAppointment = await get(
+      "SELECT id FROM portal_appointments WHERE reason = ? ORDER BY id ASC LIMIT 1",
+      ["Orthopedic follow-up"]
+    );
+    const cardiologyAppointment = await get(
+      "SELECT id FROM portal_appointments WHERE reason = ? ORDER BY id ASC LIMIT 1",
+      ["Consultation for irregular heartbeat"]
+    );
+
+    if (patient && drNair && orthopedicAppointment) {
+      await run(
+        `INSERT INTO portal_admissions (
+          patient_id,
+          appointment_id,
+          admitted_by_doctor_id,
+          room_label,
+          status,
+          care_notes,
+          admitted_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          patient.id,
+          orthopedicAppointment.id,
+          drNair.id,
+          "Ward B-12",
+          "admitted",
+          "Support knee rehabilitation, monitor pain score, and confirm evening medication dose.",
+          nowIso(-6200),
+          nowIso(-6200)
+        ]
+      );
+    }
+
+    if (sara && doctor && cardiologyAppointment) {
+      await run(
+        `INSERT INTO portal_admissions (
+          patient_id,
+          appointment_id,
+          admitted_by_doctor_id,
+          room_label,
+          status,
+          care_notes,
+          admitted_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          sara.id,
+          cardiologyAppointment.id,
+          doctor.id,
+          "Observation 03",
+          "under_observation",
+          "Monitor palpitations, maintain hydration, and prepare for cardiology review.",
+          nowIso(-180),
+          nowIso(-180)
+        ]
+      );
+    }
+  }
+
+  const bills = await get("SELECT COUNT(*) AS total FROM portal_bills");
+
+  if (!bills?.total) {
+    const patient = await get("SELECT id FROM portal_users WHERE email = ?", ["patient@abchospital.com"]);
+    const sara = await get("SELECT id FROM portal_users WHERE email = ?", ["sara.patient@abchospital.com"]);
+    const receptionist = await get("SELECT id FROM portal_users WHERE email = ?", ["receptionist@abchospital.com"]);
+    const orthopedicAppointment = await get(
+      "SELECT id FROM portal_appointments WHERE reason = ? ORDER BY id ASC LIMIT 1",
+      ["Orthopedic follow-up"]
+    );
+    const cardiologyAppointment = await get(
+      "SELECT id FROM portal_appointments WHERE reason = ? ORDER BY id ASC LIMIT 1",
+      ["Consultation for irregular heartbeat"]
+    );
+
+    if (patient && receptionist && orthopedicAppointment) {
+      await run(
+        `INSERT INTO portal_bills (
+          patient_id,
+          appointment_id,
+          created_by_user_id,
+          category,
+          amount,
+          status,
+          due_date,
+          paid_at,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          patient.id,
+          orthopedicAppointment.id,
+          receptionist.id,
+          "Orthopedic consultation",
+          1850,
+          "paid",
+          nowIso(-7000),
+          nowIso(-6900),
+          "Cleared at the front desk after follow-up.",
+          nowIso(-7000),
+          nowIso(-6900)
+        ]
+      );
+    }
+
+    if (sara && receptionist && cardiologyAppointment) {
+      await run(
+        `INSERT INTO portal_bills (
+          patient_id,
+          appointment_id,
+          created_by_user_id,
+          category,
+          amount,
+          status,
+          due_date,
+          paid_at,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          sara.id,
+          cardiologyAppointment.id,
+          receptionist.id,
+          "Cardiology OPD booking",
+          2400,
+          "pending",
+          nowIso(360),
+          null,
+          "Collect billing before consultation starts.",
+          nowIso(-60),
+          nowIso(-60)
+        ]
+      );
+    }
+  }
+}
+
 async function initializeDatabase() {
   await run("PRAGMA foreign_keys = ON");
 
@@ -568,6 +834,7 @@ async function initializeDatabase() {
       email TEXT NOT NULL UNIQUE,
       phone TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      google_sub TEXT,
       role TEXT NOT NULL CHECK (
         role IN ('patient', 'doctor', 'admin', 'super_admin', 'nurse', 'receptionist', 'staff')
       ),
@@ -578,6 +845,8 @@ async function initializeDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await ensureTableColumn("portal_users", "google_sub", "TEXT");
 
   await run(`
     CREATE TABLE IF NOT EXISTS portal_appointments (
@@ -606,6 +875,25 @@ async function initializeDatabase() {
   `);
 
   await run(`
+    CREATE TABLE IF NOT EXISTS portal_admissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL,
+      appointment_id INTEGER,
+      admitted_by_doctor_id INTEGER NOT NULL,
+      room_label TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'admitted' CHECK (
+        status IN ('admitted', 'under_observation', 'discharged')
+      ),
+      care_notes TEXT DEFAULT '',
+      admitted_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (patient_id) REFERENCES portal_users(id),
+      FOREIGN KEY (appointment_id) REFERENCES portal_appointments(id),
+      FOREIGN KEY (admitted_by_doctor_id) REFERENCES portal_users(id)
+    )
+  `);
+
+  await run(`
     CREATE TABLE IF NOT EXISTS portal_emergency_cases (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       patient_name TEXT NOT NULL,
@@ -626,6 +914,28 @@ async function initializeDatabase() {
       FOREIGN KEY (added_by_user_id) REFERENCES portal_users(id),
       FOREIGN KEY (assigned_doctor_id) REFERENCES portal_users(id),
       FOREIGN KEY (assigned_nurse_id) REFERENCES portal_users(id)
+    )
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS portal_bills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL,
+      appointment_id INTEGER,
+      created_by_user_id INTEGER NOT NULL,
+      category TEXT NOT NULL DEFAULT 'OPD Consultation',
+      amount REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'paid', 'partial')
+      ),
+      due_date TEXT,
+      paid_at TEXT,
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (patient_id) REFERENCES portal_users(id),
+      FOREIGN KEY (appointment_id) REFERENCES portal_appointments(id),
+      FOREIGN KEY (created_by_user_id) REFERENCES portal_users(id)
     )
   `);
 
@@ -704,7 +1014,13 @@ async function initializeDatabase() {
 
   await run("CREATE INDEX IF NOT EXISTS idx_portal_users_role ON portal_users(role)");
   await run(
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_portal_users_google_sub ON portal_users(google_sub) WHERE google_sub IS NOT NULL"
+  );
+  await run(
     "CREATE INDEX IF NOT EXISTS idx_portal_appointments_doctor ON portal_appointments(doctor_id)"
+  );
+  await run(
+    "CREATE INDEX IF NOT EXISTS idx_portal_admissions_status ON portal_admissions(status, admitted_at)"
   );
   await run(
     "CREATE INDEX IF NOT EXISTS idx_portal_appointments_patient ON portal_appointments(patient_id)"
@@ -718,8 +1034,12 @@ async function initializeDatabase() {
   await run(
     "CREATE INDEX IF NOT EXISTS idx_portal_notifications_user ON portal_notifications(user_id, created_at)"
   );
+  await run(
+    "CREATE INDEX IF NOT EXISTS idx_portal_bills_status ON portal_bills(status, due_date)"
+  );
 
   await seedPortalData();
+  await seedOperationalExtensions();
 }
 
 module.exports = {

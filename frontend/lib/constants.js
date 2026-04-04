@@ -32,7 +32,10 @@ export const DEMO_CREDENTIALS = {
 export const SECTION_LABELS = {
   overview: "Overview",
   appointments: "Appointments",
+  admissions: "Admitted Patients",
+  billing: "Billing",
   queue: "Emergency Queue",
+  opd: "OPD Queue",
   chat: "Doctor Chat",
   prescriptions: "Prescriptions",
   users: "Users",
@@ -72,17 +75,17 @@ export const ROLE_CONFIGS = {
   },
   nurse: {
     label: "Nurse",
-    subtitle: "Triage support station",
+    subtitle: "Ward medication desk",
     description:
-      "Track urgent cases, update treatment status, and help doctors move critical patients faster.",
-    sections: ["overview", "queue", "appointments", "notifications"]
+      "See only admitted patients, review ward care notes, and follow doctor-prescribed medicine doses.",
+    sections: ["overview", "admissions", "prescriptions", "notifications"]
   },
   receptionist: {
     label: "Receptionist",
     subtitle: "Front desk workflow",
     description:
-      "Register patients, book appointments, and coordinate intake across the front desk and emergency queue.",
-    sections: ["overview", "patients", "appointments", "queue", "notifications"]
+      "Register patients, manage appointments, follow the OPD queue, and handle front-desk billing without emergency access.",
+    sections: ["overview", "patients", "appointments", "opd", "billing", "notifications"]
   },
   staff: {
     label: "Staff",
@@ -156,6 +159,14 @@ export function formatDate(value) {
   return new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium"
   }).format(new Date(value));
+}
+
+export function formatCurrency(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(Number(value || 0));
 }
 
 export function sortEmergencyQueue(queue) {

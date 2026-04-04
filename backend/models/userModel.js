@@ -8,6 +8,7 @@ async function getUserById(userId) {
       name,
       email,
       phone,
+      google_sub,
       role,
       specialization,
       experience_years,
@@ -28,6 +29,7 @@ async function getUserByIdentifier(identifier) {
       email,
       phone,
       password_hash,
+      google_sub,
       role,
       specialization,
       experience_years,
@@ -37,6 +39,48 @@ async function getUserByIdentifier(identifier) {
     FROM portal_users
     WHERE email = ? OR phone = ?`,
     [identifier, identifier]
+  );
+}
+
+async function getUserByEmail(email) {
+  return get(
+    `SELECT
+      id,
+      name,
+      email,
+      phone,
+      password_hash,
+      google_sub,
+      role,
+      specialization,
+      experience_years,
+      department,
+      notes,
+      created_at
+    FROM portal_users
+    WHERE email = ?`,
+    [email]
+  );
+}
+
+async function getUserByGoogleSub(googleSub) {
+  return get(
+    `SELECT
+      id,
+      name,
+      email,
+      phone,
+      password_hash,
+      google_sub,
+      role,
+      specialization,
+      experience_years,
+      department,
+      notes,
+      created_at
+    FROM portal_users
+    WHERE google_sub = ?`,
+    [googleSub]
   );
 }
 
@@ -56,6 +100,7 @@ async function createUser({
   email,
   phone,
   passwordHash,
+  googleSub = null,
   role,
   specialization = "",
   experienceYears = 0,
@@ -68,23 +113,34 @@ async function createUser({
       email,
       phone,
       password_hash,
+      google_sub,
       role,
       specialization,
       experience_years,
       department,
       notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       name,
       email,
       phone,
       passwordHash,
+      googleSub,
       role,
       specialization,
       experienceYears,
       department,
       notes
     ]
+  );
+}
+
+async function linkUserGoogleSub(userId, googleSub) {
+  return run(
+    `UPDATE portal_users
+    SET google_sub = ?
+    WHERE id = ?`,
+    [googleSub, userId]
   );
 }
 
@@ -301,12 +357,15 @@ module.exports = {
   fetchUsers,
   findUserConflictByEmailOrPhone,
   getRecipientsByRoles,
+  getUserByEmail,
   getUserById,
   getUserByIdAndRole,
   getUserByIdentifier,
+  getUserByGoogleSub,
   getUserCount,
   getUserDeleteTarget,
   getUserForEdit,
   getUserIdentityById,
+  linkUserGoogleSub,
   updateUser
 };
