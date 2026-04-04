@@ -1,5 +1,9 @@
 const { all, run } = require("../config/db");
-const { safeJsonParse, uniqueIds } = require("../utils/portal");
+const {
+  canViewCriticalEmergency,
+  safeJsonParse,
+  uniqueIds
+} = require("../utils/portal");
 
 async function createNotifications(userIds, payload) {
   const recipients = uniqueIds(userIds);
@@ -44,16 +48,29 @@ async function fetchNotifications(currentUser) {
     [currentUser.id]
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type,
-    severity: row.severity,
-    title: row.title,
-    body: row.body,
-    meta: safeJsonParse(row.meta_json, {}) || {},
-    isRead: Boolean(row.is_read),
-    createdAt: row.created_at
-  }));
+  return rows
+    .filter(
+      (row) =>
+        !(
+          currentUser.role === "nurse" &&
+          row.type === "emergency"
+        ) &&
+        !(
+          row.type === "emergency" &&
+          row.severity === "critical" &&
+          !canViewCriticalEmergency(currentUser)
+        )
+    )
+    .map((row) => ({
+      id: row.id,
+      type: row.type,
+      severity: row.severity,
+      title: row.title,
+      body: row.body,
+      meta: safeJsonParse(row.meta_json, {}) || {},
+      isRead: Boolean(row.is_read),
+      createdAt: row.created_at
+    }));
 }
 
 async function markNotificationRead(notificationId, userId) {

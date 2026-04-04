@@ -32,6 +32,10 @@ function attachAppointmentQueueRanks(appointments) {
 }
 
 async function fetchAppointments(currentUser, filters = {}) {
+  if (currentUser.role === "nurse") {
+    return [];
+  }
+
   const where = [];
   const params = [];
 
@@ -152,6 +156,7 @@ async function getAppointmentById(appointmentId) {
       id,
       patient_id,
       doctor_id,
+      medical_field,
       status,
       severity,
       appointment_date,

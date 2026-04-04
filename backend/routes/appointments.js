@@ -9,6 +9,7 @@ const { createNotifications } = require("../models/notificationModel");
 const { getUserByIdAndRole } = require("../models/userModel");
 const {
   APPOINTMENT_STATUSES,
+  normalizeMedicalField,
   normalizeSeverity
 } = require("../utils/portal");
 
@@ -27,6 +28,9 @@ router.post(
       const symptoms = String(req.body.symptoms || "").trim();
       const patientNotes = String(req.body.patientNotes || "").trim();
       const severity = normalizeSeverity(req.body.severity || req.body.emergencyLevel);
+      const requestedMedicalField = normalizeMedicalField(
+        req.body.medicalField || req.body.specialization
+      );
 
       if (!doctorId || !patientId || !appointmentDate || !reason) {
         res
@@ -37,9 +41,17 @@ router.post(
 
       const doctor = await getUserByIdAndRole(doctorId, "doctor");
       const patient = await getUserByIdAndRole(patientId, "patient");
+      const doctorMedicalField = normalizeMedicalField(doctor?.specialization || "general");
 
       if (!doctor || !patient) {
         res.status(404).json({ error: "Patient or doctor could not be found." });
+        return;
+      }
+
+      if (requestedMedicalField && requestedMedicalField !== doctorMedicalField) {
+        res.status(400).json({
+          error: "Please choose a doctor from the same specialization field."
+        });
         return;
       }
 
@@ -48,7 +60,7 @@ router.post(
         doctorId,
         createdByUserId: req.user.id,
         appointmentDate,
-        medicalField: (doctor.specialization || "General").toLowerCase(),
+        medicalField: requestedMedicalField || doctorMedicalField || "general",
         severity,
         symptoms,
         reason,
@@ -98,6 +110,17 @@ router.patch(
 
       if (req.user.role === "doctor" && appointment.doctor_id !== req.user.id) {
         res.status(403).json({ error: "You can only update appointments assigned to you." });
+        return;
+      }
+
+      if (
+        req.user.role === "doctor" &&
+        normalizeMedicalField(req.user.specialization || req.user.department) !==
+          normalizeMedicalField(appointment.medical_field || "")
+      ) {
+        res.status(403).json({
+          error: "You can only update severity for appointments in your specialization."
+        });
         return;
       }
 

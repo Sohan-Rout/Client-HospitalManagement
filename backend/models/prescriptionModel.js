@@ -2,7 +2,7 @@ const { all, get, run } = require("../config/db");
 const { safeJsonParse } = require("../utils/portal");
 
 async function fetchPrescriptions(currentUser) {
-  if (!["patient", "doctor", "admin", "super_admin"].includes(currentUser.role)) {
+  if (!["patient", "doctor", "nurse", "admin", "super_admin"].includes(currentUser.role)) {
     return [];
   }
 
@@ -15,6 +15,10 @@ async function fetchPrescriptions(currentUser) {
   } else if (currentUser.role === "doctor") {
     where.push("pr.doctor_id = ?");
     params.push(currentUser.id);
+  } else if (currentUser.role === "nurse") {
+    where.push(
+      "pr.patient_id IN (SELECT patient_id FROM portal_admissions WHERE status IN ('admitted', 'under_observation'))"
+    );
   }
 
   const rows = await all(

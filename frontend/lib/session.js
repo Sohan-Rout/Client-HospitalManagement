@@ -1,4 +1,5 @@
 const STORAGE_KEY = "abcHospitalSession";
+const RECENT_LOGIN_KEY = "abcHospitalRecentLogin";
 
 export function getStoredSession() {
   if (typeof window === "undefined") {
@@ -27,4 +28,33 @@ export function clearStoredSession() {
   }
 
   window.localStorage.removeItem(STORAGE_KEY);
+}
+
+export function rememberRecentLogin(user, loggedInAt = new Date().toISOString()) {
+  if (typeof window === "undefined" || !user) {
+    return null;
+  }
+
+  const payload = {
+    email: user.email,
+    loggedInAt,
+    name: user.name,
+    role: user.role
+  };
+
+  window.localStorage.setItem(RECENT_LOGIN_KEY, JSON.stringify(payload));
+  return payload;
+}
+
+export function getRecentLogin() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(RECENT_LOGIN_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
 }

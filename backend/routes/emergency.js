@@ -8,7 +8,9 @@ const {
 const { createNotifications } = require("../models/notificationModel");
 const { getRecipientsByRoles } = require("../models/userModel");
 const {
+  CRITICAL_EMERGENCY_THRESHOLD,
   EMERGENCY_STATUSES,
+  canSetCriticalEmergencyLevel,
   normalizeSeverity,
   uniqueIds
 } = require("../utils/portal");
@@ -18,7 +20,7 @@ const router = express.Router();
 router.post(
   "/",
   authMiddleware,
-  requireRole("staff", "receptionist", "nurse", "doctor", "admin", "super_admin"),
+  requireRole("staff", "nurse", "doctor", "admin", "super_admin"),
   async (req, res) => {
     try {
       const patientName = String(req.body.patientName || "").trim();
@@ -41,6 +43,11 @@ router.post(
         return;
       }
 
+      if (severity >= CRITICAL_EMERGENCY_THRESHOLD && !canSetCriticalEmergencyLevel(req.user)) {
+        res.status(403).json({ error: "Only doctors can set a critical emergency level." });
+        return;
+      }
+
       const insert = await createEmergencyCase({
         patientName,
         patientAge,
@@ -54,17 +61,24 @@ router.post(
         notes
       });
 
-      const recipients = [
-        ...(await getRecipientsByRoles(["super_admin", "admin", "nurse"])),
-        assignedDoctorId,
-        assignedNurseId,
-        patientUserId
-      ];
+      const criticalRecipients = await getRecipientsByRoles(["super_admin", "admin", "nurse"]);
+      const recipients =
+        severity >= CRITICAL_EMERGENCY_THRESHOLD
+          ? criticalRecipients
+          : [
+              ...criticalRecipients,
+              assignedDoctorId,
+              assignedNurseId,
+              patientUserId
+            ];
 
       await createNotifications(recipients, {
         type: "emergency",
-        severity: severity >= 4 ? "critical" : "medium",
-        title: severity >= 4 ? "Critical patient added" : "Emergency queue updated",
+        severity: severity >= CRITICAL_EMERGENCY_THRESHOLD ? "critical" : "medium",
+        title:
+          severity >= CRITICAL_EMERGENCY_THRESHOLD
+            ? "Critical patient added"
+            : "Emergency queue updated",
         body: `${patientName} entered the emergency queue with severity ${severity}.`,
         meta: {
           section: "queue",
@@ -85,7 +99,7 @@ router.post(
 router.patch(
   "/:id",
   authMiddleware,
-  requireRole("staff", "receptionist", "nurse", "doctor", "admin", "super_admin"),
+  requireRole("staff", "nurse", "doctor", "admin", "super_admin"),
   async (req, res) => {
     try {
       const emergencyId = Number(req.params.id);
@@ -93,6 +107,13 @@ router.patch(
 
       if (!existing) {
         res.status(404).json({ error: "Emergency case not found." });
+        return;
+      }
+
+      if (req.user.role === "doctor" && existing.assigned_doctor_id !== req.user.id) {
+        res.status(403).json({
+          error: "You can only update emergency cases assigned to you."
+        });
         return;
       }
 
@@ -113,6 +134,15 @@ router.patch(
         return;
       }
 
+      if (
+        req.body.severity !== undefined &&
+        severity >= CRITICAL_EMERGENCY_THRESHOLD &&
+        !canSetCriticalEmergencyLevel(req.user)
+      ) {
+        res.status(403).json({ error: "Only doctors can set a critical emergency level." });
+        return;
+      }
+
       await updateEmergencyCase(emergencyId, {
         severity,
         status,
@@ -121,16 +151,20 @@ router.patch(
         assignedNurseId
       });
 
+      const criticalRecipients = await getRecipientsByRoles(["super_admin", "admin", "nurse"]);
+
       await createNotifications(
-        uniqueIds([
-          existing.patient_user_id,
-          assignedDoctorId,
-          assignedNurseId,
-          ...(await getRecipientsByRoles(["super_admin", "admin"]))
-        ]),
+        severity >= CRITICAL_EMERGENCY_THRESHOLD
+          ? criticalRecipients
+          : uniqueIds([
+              existing.patient_user_id,
+              assignedDoctorId,
+              assignedNurseId,
+              ...criticalRecipients
+            ]),
         {
           type: "emergency",
-          severity: severity >= 4 ? "critical" : "medium",
+          severity: severity >= CRITICAL_EMERGENCY_THRESHOLD ? "critical" : "medium",
           title: "Emergency case updated",
           body: `Emergency case #${emergencyId} is now ${status.replace(/_/g, " ")}.`,
           meta: {
