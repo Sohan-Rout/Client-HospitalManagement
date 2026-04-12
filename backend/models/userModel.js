@@ -256,6 +256,8 @@ async function getUserForEdit(userId) {
 }
 
 async function updateUser(userId, payload) {
+  const shouldUpdatePassword = Boolean(payload.passwordHash);
+
   return run(
     `UPDATE portal_users
     SET
@@ -267,6 +269,7 @@ async function updateUser(userId, payload) {
       experience_years = ?,
       department = ?,
       notes = ?
+      ${shouldUpdatePassword ? ", password_hash = ?" : ""}
     WHERE id = ?`,
     [
       payload.name,
@@ -277,6 +280,7 @@ async function updateUser(userId, payload) {
       payload.experienceYears,
       payload.department,
       payload.notes,
+      ...(shouldUpdatePassword ? [payload.passwordHash] : []),
       userId
     ]
   );

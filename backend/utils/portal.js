@@ -35,6 +35,11 @@ const USER_CREATION_RULES = {
   admin: ["doctor", "nurse", "receptionist", "staff", "patient"],
   receptionist: ["patient"]
 };
+const BED_CAPACITY = {
+  icu: 40,
+  opd: 60,
+  ot: 20
+};
 
 function sanitizeUser(user) {
   if (!user) {
@@ -137,7 +142,7 @@ function buildPrescriptionChangeSummary(previousVersion, nextVersion) {
 
 function getCapabilities(role) {
   return {
-    canCreateUsers: ["super_admin", "admin", "receptionist"].includes(role),
+    canCreateUsers: role === "super_admin",
     canDeleteUsers: role === "super_admin",
     canViewReports: ["super_admin", "admin"].includes(role),
     canBookForOthers: ["super_admin", "admin", "receptionist"].includes(role),
@@ -162,6 +167,7 @@ function buildSummary(user, payload) {
   const criticalEmergencies = payload.emergencyQueue.filter(
     (item) => item.severity >= CRITICAL_EMERGENCY_THRESHOLD
   ).length;
+  const bedAvailabilityCard = buildBedAvailabilityCard(payload.admissions || []);
 
   if (user.role === "patient") {
     const activeAppointments = payload.appointments.filter((item) =>
@@ -194,7 +200,8 @@ function buildSummary(user, payload) {
           label: "Unread alerts",
           value: unreadNotifications,
           helper: "Appointments, chat, and emergency updates"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Book your next appointment or check queue rank.",
@@ -233,7 +240,8 @@ function buildSummary(user, payload) {
           label: "Visible emergencies",
           value: visibleEmergencies,
           helper: "Queue items available to your role"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Triage pending appointments by severity and FIFO order.",
@@ -268,7 +276,8 @@ function buildSummary(user, payload) {
           label: "Unread alerts",
           value: unreadNotifications,
           helper: "System notifications awaiting review"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Monitor queue flow and rebalance departments when spikes happen.",
@@ -301,7 +310,8 @@ function buildSummary(user, payload) {
           label: "Critical alerts",
           value: criticalEmergencies + unreadNotifications,
           helper: "Emergency and notification pressure"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Create or remove users with role-level controls.",
@@ -340,7 +350,8 @@ function buildSummary(user, payload) {
           label: "Unread alerts",
           value: unreadNotifications,
           helper: "Operational updates"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Review admitted patient rooms and care notes before each round.",
@@ -378,7 +389,8 @@ function buildSummary(user, payload) {
           label: "Unread alerts",
           value: unreadNotifications,
           helper: "Front-desk and appointment updates"
-        }
+        },
+        bedAvailabilityCard
       ],
       tasks: [
         "Register walk-ins or new portal patients.",
@@ -412,7 +424,8 @@ function buildSummary(user, payload) {
         label: "Unread alerts",
         value: unreadNotifications,
         helper: "Emergency notifications"
-      }
+      },
+      bedAvailabilityCard
     ],
     tasks: [
       "Add new emergency patients with the right severity.",
@@ -422,7 +435,38 @@ function buildSummary(user, payload) {
   };
 }
 
+function buildBedAvailabilityCard(admissions) {
+  const occupied = { icu: 0, opd: 0, ot: 0 };
+
+  (admissions || []).forEach((admission) => {
+    const room = String(admission.roomLabel || "").toLowerCase();
+    if (room.includes("icu")) {
+      occupied.icu += 1;
+    } else if (room.includes("ot")) {
+      occupied.ot += 1;
+    } else {
+      occupied.opd += 1;
+    }
+  });
+
+  const available = {
+    icu: Math.max(0, BED_CAPACITY.icu - occupied.icu),
+    opd: Math.max(0, BED_CAPACITY.opd - occupied.opd),
+    ot: Math.max(0, BED_CAPACITY.ot - occupied.ot)
+  };
+
+  return {
+    label: "Beds available",
+    value: available.icu + available.opd + available.ot,
+    helper: `ICU ${available.icu}/${BED_CAPACITY.icu} · OPD ${available.opd}/${BED_CAPACITY.opd} · OT ${available.ot}/${BED_CAPACITY.ot}`
+  };
+}
+
 function canCreateRole(requester, targetRole) {
+  if (requester.role !== "super_admin") {
+    return false;
+  }
+
   return (USER_CREATION_RULES[requester.role] || []).includes(targetRole);
 }
 

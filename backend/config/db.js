@@ -881,6 +881,8 @@ async function initializeDatabase() {
       appointment_id INTEGER,
       admitted_by_doctor_id INTEGER NOT NULL,
       room_label TEXT DEFAULT '',
+      shifted_to TEXT DEFAULT '',
+      shifted_updated_by_user_id INTEGER,
       status TEXT NOT NULL DEFAULT 'admitted' CHECK (
         status IN ('admitted', 'under_observation', 'discharged')
       ),
@@ -889,9 +891,13 @@ async function initializeDatabase() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (patient_id) REFERENCES portal_users(id),
       FOREIGN KEY (appointment_id) REFERENCES portal_appointments(id),
-      FOREIGN KEY (admitted_by_doctor_id) REFERENCES portal_users(id)
+      FOREIGN KEY (admitted_by_doctor_id) REFERENCES portal_users(id),
+      FOREIGN KEY (shifted_updated_by_user_id) REFERENCES portal_users(id)
     )
   `);
+
+  await ensureTableColumn("portal_admissions", "shifted_to", "TEXT DEFAULT ''");
+  await ensureTableColumn("portal_admissions", "shifted_updated_by_user_id", "INTEGER");
 
   await run(`
     CREATE TABLE IF NOT EXISTS portal_emergency_cases (

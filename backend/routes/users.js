@@ -25,7 +25,7 @@ const router = express.Router();
 router.post(
   "/",
   authMiddleware,
-  requireRole("super_admin", "admin", "receptionist"),
+  requireRole("super_admin"),
   async (req, res) => {
     try {
       const role = String(req.body.role || "patient").trim().toLowerCase();
@@ -135,6 +135,7 @@ router.patch(
         req.body.department !== undefined ? req.body.department : existing.department
       ).trim();
       const notes = String(req.body.notes !== undefined ? req.body.notes : existing.notes).trim();
+      const password = String(req.body.password || "").trim();
 
       if (!name || !email || !phone) {
         res.status(400).json({ error: "Name, email, and phone are required." });
@@ -157,7 +158,7 @@ router.patch(
         return;
       }
 
-      await updateUser(userId, {
+      const nextPayload = {
         name,
         email,
         phone,
@@ -167,7 +168,13 @@ router.patch(
         department:
           department || (nextRole === "doctor" ? specialization : existing.department || "General"),
         notes
-      });
+      };
+
+      if (password) {
+        nextPayload.passwordHash = await bcrypt.hash(password, 10);
+      }
+
+      await updateUser(userId, nextPayload);
 
       const updatedUser = await getUserById(userId);
 

@@ -27,8 +27,7 @@ const ACCESS_ORDER = [
   "nurse",
   "receptionist",
   "admin",
-  "super_admin",
-  "staff"
+  "super_admin"
 ];
 const TRUST_MARKERS = [
   { label: "Response window", value: "< 30 sec" },
