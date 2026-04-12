@@ -1784,34 +1784,55 @@ function ChatSection({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
-      <aside className="space-y-3">
+      <aside className="space-y-3 rounded-[24px] border border-slate-200 bg-white/95 p-3">
+        <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            Conversations
+          </p>
+          <p className="mt-1 text-sm text-emerald-900">
+            {chats.length} active {chats.length > 1 ? "patients" : "patient"}
+          </p>
+        </div>
         {chats.map((thread) => {
           const peer = user.role === "doctor" ? thread.patient : thread.doctor;
+          const firstInitial = peer.name?.slice(0, 1)?.toUpperCase() || "?";
 
           return (
             <button
               key={thread.id}
-              className={`w-full rounded-[24px] border p-4 text-left transition ${
+              className={`w-full rounded-[20px] border p-3 text-left transition ${
                 selectedChat?.id === thread.id
-                  ? "border-sky-200 bg-sky-50/80"
-                  : "border-slate-200 bg-white/90 hover:border-sky-100 hover:bg-slate-50"
+                  ? "border-emerald-200 bg-emerald-50/70"
+                  : "border-slate-200 bg-white/95 hover:border-emerald-100 hover:bg-slate-50"
               }`}
               onClick={() => onChatSelect(thread.id)}
               type="button"
             >
-              <p className="text-sm font-semibold text-slate-900">{peer.name}</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400">
-                {user.role === "doctor" ? "Patient" : peer.specialization || "Doctor"}
-              </p>
-              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">
-                {thread.latestMessage || "No messages yet."}
-              </p>
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                  {firstInitial}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-900">{peer.name}</p>
+                    <p className="shrink-0 text-[11px] text-slate-500">
+                      {formatDateTime(thread.updatedAt)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {user.role === "doctor" ? "Patient" : peer.specialization || "Doctor"}
+                  </p>
+                  <p className="mt-2 line-clamp-1 text-sm leading-6 text-slate-600">
+                    {thread.latestMessage || "No messages yet."}
+                  </p>
+                </div>
+              </div>
             </button>
           );
         })}
       </aside>
 
-      <div className="info-card">
+      <div className="info-card border-emerald-100">
         <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <p className="eyebrow">Active thread</p>
@@ -1822,23 +1843,26 @@ function ChatSection({
                   : selectedChat.doctor.name
                 : "Conversation"}
             </h4>
+            <p className="mt-1 text-xs text-slate-500">WhatsApp-style quick conversation flow</p>
           </div>
           {selectedChat?.doctor?.specialization ? (
-            <span className="chip">{selectedChat.doctor.specialization}</span>
+            <span className="chip border-emerald-200 bg-emerald-50 text-emerald-800">
+              {selectedChat.doctor.specialization}
+            </span>
           ) : null}
         </div>
 
-        <div className="max-h-[420px] space-y-3 overflow-y-auto pr-2">
+        <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-[20px] bg-slate-50 p-3 pr-2">
           {selectedChat?.messages?.map((message) => {
             const mine = message.sender.id === user.id;
 
             return (
               <div
                 key={message.id}
-                className={`max-w-[85%] rounded-[22px] px-4 py-3 text-sm leading-7 ${
+                className={`max-w-[85%] rounded-[20px] px-4 py-3 text-sm leading-7 shadow-sm ${
                   mine
-                    ? "ml-auto bg-sky-600 text-white"
-                    : "bg-slate-100 text-slate-700"
+                    ? "ml-auto bg-emerald-500 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
                 }`}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] opacity-70">
@@ -1853,12 +1877,12 @@ function ChatSection({
 
         <form className="mt-5 space-y-3" onSubmit={onSendChat}>
           <textarea
-            className="textarea-field"
+            className="textarea-field border-emerald-200 focus-visible:ring-emerald-500/30"
             onChange={(event) => onChatBodyChange(event.target.value)}
-            placeholder="Type a message to continue the conversation..."
+            placeholder="Type a message..."
             value={chatBody}
           />
-          <button className="btn-primary" type="submit">
+          <button className="btn-primary bg-emerald-600 hover:bg-emerald-500" type="submit">
             Send message
           </button>
         </form>
