@@ -10,13 +10,13 @@ const navlinks = [
         link : "/",
     },
     {
-        icon : <TableOfContent size={18} />,
-        title : "FAQs",
+        icon : <QuestionMark size={18} />,
+        title : "About Us",
         link : "/",
     },
     {
-        icon : <QuestionMark size={18} />,
-        title : "How To Use",
+        icon : <TableOfContent size={18} />,
+        title : "Services",
         link : "/",
     },
 ];

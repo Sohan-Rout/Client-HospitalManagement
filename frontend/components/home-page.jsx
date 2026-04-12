@@ -1,5 +1,6 @@
 "use client";
 import Navbar from "./ui/navbar";
+import Hero from "./home/hero";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -309,23 +310,11 @@ export default function HomePage() {
       <div className="page-wrap relative space-y-8 pb-12 pt-6 md:space-y-10 md:pb-20">
         <Navbar />
 
+        <Hero />
+
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
-            <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-gradient-to-l from-sky-100/80 to-transparent lg:block" />
-            <div className="float-drift absolute -right-10 top-10 hidden h-36 w-36 rounded-full bg-white/70 blur-3xl lg:block" />
             <div className="relative space-y-6">
-              <div className="space-y-4">
-                <span className="chip bg-white/90 text-sky-700">Unified portal login for every care role</span>
-                <h2 className="max-w-2xl text-4xl font-semibold leading-tight text-slate-950 md:text-6xl">
-                  A cleaner hospital sign-in experience for patients, doctors, nurses, and admins.
-                </h2>
-                <p className="max-w-2xl text-base leading-8 text-slate-600">
-                  The login flow now feels more premium and more practical: quick role shortcuts,
-                  Google sign-in, clearer password controls, returning-user cues, and a calmer
-                  healthcare visual language across desktop and mobile.
-                </p>
-              </div>
-
               <div className="grid gap-4 md:grid-cols-3">
                 {TRUST_MARKERS.map((item) => (
                   <div key={item.label} className="auth-stat">
