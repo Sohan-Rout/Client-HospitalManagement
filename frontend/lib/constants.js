@@ -49,8 +49,8 @@ export const ROLE_CONFIGS = {
     label: "Patient",
     subtitle: "Personal care workspace",
     description:
-      "Book appointments, monitor queue status, chat with your doctor, and review prescription history.",
-    sections: ["appointments", "queue", "chat", "prescriptions", "notifications"]
+      "Book appointments, chat with your doctor, and review prescription history.",
+    sections: ["appointments", "chat", "prescriptions", "notifications"]
   },
   doctor: {
     label: "Doctor",
