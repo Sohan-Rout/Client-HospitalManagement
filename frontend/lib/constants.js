@@ -64,14 +64,14 @@ export const ROLE_CONFIGS = {
     subtitle: "Operations console",
     description:
       "Manage staff, oversee reports, watch hospital traffic, and coordinate queue pressure.",
-    sections: ["users", "appointments", "queue", "reports", "notifications"]
+    sections: ["users", "appointments", "reports", "notifications"]
   },
   super_admin: {
     label: "Super Admin",
     subtitle: "System command center",
     description:
       "Full control over hospital access, operations reporting, queue risk, and account governance.",
-    sections: ["users", "appointments", "queue", "reports", "notifications"]
+    sections: ["users", "appointments", "reports", "notifications"]
   },
   nurse: {
     label: "Nurse",

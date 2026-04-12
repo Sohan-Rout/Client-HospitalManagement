@@ -921,6 +921,7 @@ function SectionRenderer({
   if (activeSection === "queue") {
     return (
       <QueueSection
+        appointments={bootstrap.appointments || []}
         onEmergencySeverityChange={onEmergencySeverityChange}
         processingSeverityKeys={processingSeverityKeys}
         queue={bootstrap.emergencyQueue || []}
@@ -1723,30 +1724,86 @@ function AdmissionsSection({ admissions, onAdmissionShiftUpdate, prescriptions, 
   );
 }
 
-function QueueSection({ onEmergencySeverityChange, processingSeverityKeys, queue, user }) {
-  if (!queue.length) {
+function QueueSection({
+  appointments,
+  onEmergencySeverityChange,
+  processingSeverityKeys,
+  queue,
+  user
+}) {
+  const doctorQueue = user.role === "doctor" ? queue.filter((item) => item.status !== "closed") : queue;
+  const severitySummary = {
+    critical: doctorQueue.filter((item) => Number(item.severity || 1) >= 4).length,
+    moderate: doctorQueue.filter((item) => Number(item.severity || 1) === 3).length,
+    low: doctorQueue.filter((item) => Number(item.severity || 1) <= 2).length
+  };
+  const todayOpdAppointments = buildDoctorTodayOpdQueue(appointments, user.id);
+
+  if (!doctorQueue.length) {
     return (
       <EmptyState
-        message={
-          user.role === "patient"
-            ? "No emergency queue entries are currently linked to your account."
-            : "No emergency queue entries are visible right now."
-        }
+        message="No emergency queue entries are visible right now."
       />
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {queue.map((entry) => (
-        <EmergencyCard
-          entry={entry}
-          key={entry.id}
-          onSeverityChange={onEmergencySeverityChange}
-          processingSeverityKeys={processingSeverityKeys}
-          user={user}
-        />
-      ))}
+    <div className="space-y-4">
+      {user.role === "doctor" ? (
+        <article className="info-card border-rose-100 bg-rose-50/40">
+          <p className="eyebrow text-rose-700">Doctor priority view</p>
+          <h4 className="mt-2 text-xl font-semibold text-slate-900">
+            Emergency sorting by critical level
+          </h4>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-rose-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Critical (L4-L5)</p>
+              <p className="mt-2 text-2xl font-semibold text-rose-700">{severitySummary.critical}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Moderate (L3)</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">{severitySummary.moderate}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Normal (L1-L2)</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">{severitySummary.low}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Today OPD working list</p>
+            {todayOpdAppointments.length ? (
+              <div className="mt-3 space-y-2">
+                {todayOpdAppointments.map((appointment) => (
+                  <div
+                    className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2"
+                    key={appointment.id}
+                  >
+                    <p className="text-sm font-medium text-slate-800">{appointment.patient.name}</p>
+                    <p className="text-xs text-slate-500">
+                      Queue #{appointment.queueRank || "-"} · {formatDateTime(appointment.appointmentDate)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">No OPD appointments for today.</p>
+            )}
+          </div>
+        </article>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {doctorQueue.map((entry) => (
+          <EmergencyCard
+            entry={entry}
+            key={entry.id}
+            onSeverityChange={onEmergencySeverityChange}
+            processingSeverityKeys={processingSeverityKeys}
+            user={user}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -2636,6 +2693,34 @@ function formatSeverityTierLabel(value) {
 
 function getPrescriptionByPatient(prescriptions, patientId) {
   return (prescriptions || []).find((item) => item.patient.id === patientId) || null;
+}
+
+function buildDoctorTodayOpdQueue(appointments, doctorId) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return [...(appointments || [])]
+    .filter((appointment) => {
+      if (Number(appointment.doctor?.id) !== Number(doctorId)) {
+        return false;
+      }
+
+      if (!ACTIVE_OPD_STATUSES.has(appointment.status)) {
+        return false;
+      }
+
+      const appointmentTime = new Date(appointment.appointmentDate);
+      return appointmentTime >= start && appointmentTime < end;
+    })
+    .sort((left, right) => {
+      if (Number(left.queueRank || 999) !== Number(right.queueRank || 999)) {
+        return Number(left.queueRank || 999) - Number(right.queueRank || 999);
+      }
+
+      return new Date(left.appointmentDate) - new Date(right.appointmentDate);
+    });
 }
 
 function buildOpdQueueGroups(appointments) {
