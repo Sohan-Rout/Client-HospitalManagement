@@ -25,7 +25,7 @@ async function buildBootstrapPayload(currentUser) {
   const users = await fetchUsers(currentUser);
   const appointments = await fetchAppointments(currentUser);
   const admissions = await fetchAdmissions(currentUser);
-  const emergencyQueue = currentUser.role === "nurse" ? [] : await fetchEmergencyCases(currentUser);
+  const emergencyQueue = currentUser.role === "doctor" ? await fetchEmergencyCases(currentUser) : [];
   const chats = await fetchChatThreads(currentUser);
   const prescriptions = await fetchPrescriptions(currentUser);
   const billingRecords = await fetchBillingRecords(currentUser);

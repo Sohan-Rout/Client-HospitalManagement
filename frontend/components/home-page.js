@@ -27,14 +27,18 @@ const ACCESS_ORDER = [
   "nurse",
   "receptionist",
   "admin",
-  "super_admin",
-  "staff"
+  "super_admin"
 ];
 const TRUST_MARKERS = [
   { label: "Response window", value: "< 30 sec" },
   { label: "Role routing", value: "Auto" },
   { label: "Mobile ready", value: "100%" }
 ];
+
+function resolveDashboardPath(role) {
+  const normalizedRole = String(role || "").trim();
+  return ROLE_CONFIGS[normalizedRole] ? `/dashboard/${normalizedRole}` : null;
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -95,7 +99,18 @@ export default function HomePage() {
           token: session.token,
           user: response.user
         });
-        router.replace(`/dashboard/${response.user.role}`);
+        const redirectPath = resolveDashboardPath(response.user.role);
+
+        if (!redirectPath) {
+          clearStoredSession();
+          setMessage({
+            type: "error",
+            text: "This account role no longer has a dashboard. Please contact super admin."
+          });
+          return;
+        }
+
+        router.replace(redirectPath);
       })
       .catch(() => {
         clearStoredSession();
@@ -206,7 +221,18 @@ export default function HomePage() {
       type: "success",
       text: successText
     });
-    router.push(`/dashboard/${response.user.role}`);
+    const redirectPath = resolveDashboardPath(response.user.role);
+
+    if (!redirectPath) {
+      clearStoredSession();
+      setMessage({
+        type: "error",
+        text: "This account role no longer has a dashboard. Please contact super admin."
+      });
+      return;
+    }
+
+    router.push(redirectPath);
   }
 
   async function handleLogin(event) {

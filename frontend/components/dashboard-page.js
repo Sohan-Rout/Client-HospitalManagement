@@ -43,25 +43,41 @@ const BILLING_STYLES = {
 };
 const SEVERITY_PRESETS = [
   {
-    key: "critical",
-    label: "Critical",
-    range: "4-5",
+    key: "very_critical",
+    label: "Level 5",
+    range: "Critical",
     value: 5,
     activeClass: "border-rose-200 bg-rose-50 text-rose-700",
     idleClass: "border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:text-rose-700"
   },
   {
+    key: "high",
+    label: "Level 4",
+    range: "High",
+    value: 4,
+    activeClass: "border-orange-200 bg-orange-50 text-orange-700",
+    idleClass: "border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:text-orange-700"
+  },
+  {
     key: "medium",
-    label: "Medium",
-    range: "2-3",
+    label: "Level 3",
+    range: "Moderate",
     value: 3,
     activeClass: "border-amber-200 bg-amber-50 text-amber-700",
     idleClass: "border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:text-amber-700"
   },
   {
+    key: "mild",
+    label: "Level 2",
+    range: "Mild",
+    value: 2,
+    activeClass: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    idleClass: "border-slate-200 bg-white text-slate-600 hover:border-cyan-200 hover:text-cyan-700"
+  },
+  {
     key: "low",
-    label: "Low",
-    range: "1",
+    label: "Level 1",
+    range: "Low",
     value: 1,
     activeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
     idleClass: "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
@@ -71,6 +87,7 @@ const SEVERITY_PRESETS = [
 export default function DashboardPage({ role }) {
   const router = useRouter();
   const refreshDashboardRef = useRef(null);
+  const roleConfig = ROLE_CONFIGS[role];
   const [state, setState] = useState({
     loading: true,
     refreshing: false,
@@ -79,6 +96,7 @@ export default function DashboardPage({ role }) {
     user: null,
     bootstrap: null,
     activeSection: "overview",
+    themeMode: "system",
     selectedChatId: null,
     chatBody: "",
     notice: "",
@@ -88,6 +106,35 @@ export default function DashboardPage({ role }) {
   });
 
   useEffect(() => {
+    if (roleConfig) {
+      return;
+    }
+
+    clearStoredSession();
+    router.replace("/");
+  }, [roleConfig, router]);
+
+  useEffect(() => {
+    if (!roleConfig) {
+      return undefined;
+    }
+
+    const savedThemeMode = window.localStorage.getItem("portal-theme-mode");
+    const nextMode = savedThemeMode || "system";
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldDark = nextMode === "dark" || (nextMode === "system" && prefersDark);
+    document.body.classList.toggle("theme-dark", shouldDark);
+    setState((current) => ({
+      ...current,
+      themeMode: nextMode
+    }));
+  }, [roleConfig]);
+
+  useEffect(() => {
+    if (!roleConfig) {
+      return undefined;
+    }
+
     let ignore = false;
 
     async function loadDashboard() {
@@ -120,7 +167,13 @@ export default function DashboardPage({ role }) {
           return;
         }
 
-        const config = ROLE_CONFIGS[me.user.role] || ROLE_CONFIGS.patient;
+        const config = ROLE_CONFIGS[me.user.role];
+
+        if (!config) {
+          clearStoredSession();
+          router.replace("/");
+          return;
+        }
         const queue = sortEmergencyQueue(bootstrap.emergencyQueue || []);
 
         saveStoredSession({
@@ -159,7 +212,7 @@ export default function DashboardPage({ role }) {
     return () => {
       ignore = true;
     };
-  }, [role, router]);
+  }, [role, roleConfig, router]);
 
   async function refreshDashboard(notice = "") {
     setState((current) => ({
@@ -463,6 +516,77 @@ export default function DashboardPage({ role }) {
     }
   }
 
+  async function handleUserUpdate(userId, payload) {
+    try {
+      await apiFetch(`/users/${userId}`, {
+        method: "PATCH",
+        token: state.token,
+        body: payload
+      });
+      await refreshDashboard("User updated successfully.");
+      return { success: true };
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+      return { success: false, error: error.message };
+    }
+  }
+
+  async function handleUserDelete(userId) {
+    try {
+      await apiFetch(`/users/${userId}`, {
+        method: "DELETE",
+        token: state.token
+      });
+      await refreshDashboard("User deleted successfully.");
+      return { success: true };
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+      return { success: false, error: error.message };
+    }
+  }
+
+  async function handleUserCreate(payload) {
+    try {
+      await apiFetch("/users", {
+        method: "POST",
+        token: state.token,
+        body: payload
+      });
+      await refreshDashboard("User created successfully.");
+      return { success: true };
+    } catch (error) {
+      setState((current) => ({ ...current, error: error.message }));
+      return { success: false, error: error.message };
+    }
+  }
+
+  async function handleAdmissionShiftUpdate(admissionId, shiftedTo) {
+    try {
+      await apiFetch(`/admissions/${admissionId}/shift`, {
+        method: "PATCH",
+        token: state.token,
+        body: { shiftedTo }
+      });
+      await refreshDashboard("Patient shift location updated.");
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: error.message
+      }));
+    }
+  }
+
+  function handleThemeModeChange(nextMode) {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldDark = nextMode === "dark" || (nextMode === "system" && prefersDark);
+    document.body.classList.toggle("theme-dark", shouldDark);
+    window.localStorage.setItem("portal-theme-mode", nextMode);
+    setState((current) => ({
+      ...current,
+      themeMode: nextMode
+    }));
+  }
+
   if (state.loading) {
     return (
       <div className="page-wrap py-12">
@@ -586,6 +710,21 @@ export default function DashboardPage({ role }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white outline-none"
+                    onChange={(event) => handleThemeModeChange(event.target.value)}
+                    value={state.themeMode}
+                  >
+                    <option className="text-slate-900" value="system">
+                      Theme: System
+                    </option>
+                    <option className="text-slate-900" value="light">
+                      Theme: Light
+                    </option>
+                    <option className="text-slate-900" value="dark">
+                      Theme: Dark
+                    </option>
+                  </select>
                   <span className="rounded-full bg-white/14 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
                     {config.subtitle}
                   </span>
@@ -625,29 +764,6 @@ export default function DashboardPage({ role }) {
             </div>
 
             <div className="space-y-5 px-6 py-6">
-              <div className="flex flex-wrap gap-2">
-                {config.sections.map((section) => (
-                  <button
-                    key={section}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      state.activeSection === section
-                        ? "bg-sky-600 text-white shadow-[0_16px_32px_rgba(22,118,210,0.18)]"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                    }`}
-                    onClick={() =>
-                      setState((current) => ({
-                        ...current,
-                        activeSection: section,
-                        notice: ""
-                      }))
-                    }
-                    type="button"
-                  >
-                    {SECTION_LABELS[section]}
-                  </button>
-                ))}
-              </div>
-
               {state.notice ? (
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                   {state.notice}
@@ -691,6 +807,16 @@ export default function DashboardPage({ role }) {
               chatBody={state.chatBody}
               onAppointmentSeverityChange={handleAppointmentSeverityChange}
               onCreateAppointment={handleCreateAppointment}
+              onOpenChatFromAppointment={(appointment) => {
+                const targetThread = (state.bootstrap?.chats || []).find(
+                  (thread) => thread.patient.id === appointment.patient.id
+                );
+                setState((current) => ({
+                  ...current,
+                  activeSection: "chat",
+                  selectedChatId: targetThread?.id || current.selectedChatId
+                }));
+              }}
               onChatBodyChange={(value) =>
                 setState((current) => ({
                   ...current,
@@ -704,10 +830,14 @@ export default function DashboardPage({ role }) {
                 }))
               }
               onEmergencySeverityChange={handleEmergencySeverityChange}
+              onAdmissionShiftUpdate={handleAdmissionShiftUpdate}
               onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
               onMarkNotificationRead={handleMarkNotificationRead}
               onPrescriptionDownload={handlePrescriptionDownload}
               onSendChat={handleSendChat}
+              onUserCreate={handleUserCreate}
+              onUserDelete={handleUserDelete}
+              onUserUpdate={handleUserUpdate}
               processingNotificationIds={state.processingNotificationIds}
               downloadingPrescriptionKeys={state.downloadingPrescriptionKeys}
               processingSeverityKeys={state.processingSeverityKeys}
@@ -729,11 +859,16 @@ function SectionRenderer({
   onCreateAppointment,
   onChatBodyChange,
   onChatSelect,
+  onOpenChatFromAppointment,
   onEmergencySeverityChange,
+  onAdmissionShiftUpdate,
   onMarkAllNotificationsRead,
   onMarkNotificationRead,
   onPrescriptionDownload,
   onSendChat,
+  onUserCreate,
+  onUserDelete,
+  onUserUpdate,
   downloadingPrescriptionKeys,
   processingNotificationIds,
   processingSeverityKeys,
@@ -759,6 +894,7 @@ function SectionRenderer({
         appointments={bootstrap.appointments || []}
         doctors={bootstrap.doctors || []}
         onCreateAppointment={onCreateAppointment}
+        onOpenChatFromAppointment={onOpenChatFromAppointment}
         onAppointmentSeverityChange={onAppointmentSeverityChange}
         patients={bootstrap.patients || []}
         processingSeverityKeys={processingSeverityKeys}
@@ -771,7 +907,9 @@ function SectionRenderer({
     return (
       <AdmissionsSection
         admissions={bootstrap.admissions || []}
+        onAdmissionShiftUpdate={onAdmissionShiftUpdate}
         prescriptions={bootstrap.prescriptions || []}
+        user={user}
       />
     );
   }
@@ -783,6 +921,7 @@ function SectionRenderer({
   if (activeSection === "queue") {
     return (
       <QueueSection
+        appointments={bootstrap.appointments || []}
         onEmergencySeverityChange={onEmergencySeverityChange}
         processingSeverityKeys={processingSeverityKeys}
         queue={bootstrap.emergencyQueue || []}
@@ -821,7 +960,15 @@ function SectionRenderer({
   }
 
   if (activeSection === "users") {
-    return <UsersSection users={bootstrap.users || []} />;
+    return (
+      <UsersSection
+        onUserCreate={onUserCreate}
+        onUserDelete={onUserDelete}
+        onUserUpdate={onUserUpdate}
+        user={user}
+        users={bootstrap.users || []}
+      />
+    );
   }
 
   if (activeSection === "patients") {
@@ -1197,6 +1344,7 @@ function AppointmentsSection({
   doctors,
   onCreateAppointment,
   onAppointmentSeverityChange,
+  onOpenChatFromAppointment,
   patients,
   processingSeverityKeys,
   user
@@ -1220,6 +1368,7 @@ function AppointmentsSection({
               key={appointment.id}
               detailed={user.role !== "receptionist"}
               onSeverityChange={onAppointmentSeverityChange}
+              onOpenChatFromAppointment={onOpenChatFromAppointment}
               processingSeverityKeys={processingSeverityKeys}
               user={user}
             />
@@ -1509,7 +1658,7 @@ function AppointmentBookingCard({ doctors, onCreateAppointment, patients, user }
   );
 }
 
-function AdmissionsSection({ admissions, prescriptions }) {
+function AdmissionsSection({ admissions, onAdmissionShiftUpdate, prescriptions, user }) {
   if (!admissions.length) {
     return <EmptyState message="No admitted patients are available in this workspace." />;
   }
@@ -1539,7 +1688,16 @@ function AdmissionsSection({ admissions, prescriptions }) {
               <InfoRow label="Admitted at" value={formatDateTime(admission.admittedAt)} />
               <InfoRow label="Visit reason" value={admission.appointment?.reason || "Ward follow-up"} />
               <InfoRow label="Contact" value={admission.patient.phone} />
+              <InfoRow label="Shifted to" value={admission.shiftedTo || "Not shifted"} />
             </div>
+
+            {["doctor", "nurse"].includes(user?.role) ? (
+              <AdmissionShiftControl
+                admissionId={admission.id}
+                currentShiftedTo={admission.shiftedTo}
+                onUpdate={onAdmissionShiftUpdate}
+              />
+            ) : null}
 
             <div className="mt-5 rounded-[22px] border border-slate-100 bg-white/90 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
@@ -1566,30 +1724,86 @@ function AdmissionsSection({ admissions, prescriptions }) {
   );
 }
 
-function QueueSection({ onEmergencySeverityChange, processingSeverityKeys, queue, user }) {
-  if (!queue.length) {
+function QueueSection({
+  appointments,
+  onEmergencySeverityChange,
+  processingSeverityKeys,
+  queue,
+  user
+}) {
+  const doctorQueue = user.role === "doctor" ? queue.filter((item) => item.status !== "closed") : queue;
+  const severitySummary = {
+    critical: doctorQueue.filter((item) => Number(item.severity || 1) >= 4).length,
+    moderate: doctorQueue.filter((item) => Number(item.severity || 1) === 3).length,
+    low: doctorQueue.filter((item) => Number(item.severity || 1) <= 2).length
+  };
+  const todayOpdAppointments = buildDoctorTodayOpdQueue(appointments, user.id);
+
+  if (!doctorQueue.length) {
     return (
       <EmptyState
-        message={
-          user.role === "patient"
-            ? "No emergency queue entries are currently linked to your account."
-            : "No emergency queue entries are visible right now."
-        }
+        message="No emergency queue entries are visible right now."
       />
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {queue.map((entry) => (
-        <EmergencyCard
-          entry={entry}
-          key={entry.id}
-          onSeverityChange={onEmergencySeverityChange}
-          processingSeverityKeys={processingSeverityKeys}
-          user={user}
-        />
-      ))}
+    <div className="space-y-4">
+      {user.role === "doctor" ? (
+        <article className="info-card border-rose-100 bg-rose-50/40">
+          <p className="eyebrow text-rose-700">Doctor priority view</p>
+          <h4 className="mt-2 text-xl font-semibold text-slate-900">
+            Emergency sorting by critical level
+          </h4>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-rose-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Critical (L4-L5)</p>
+              <p className="mt-2 text-2xl font-semibold text-rose-700">{severitySummary.critical}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Moderate (L3)</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">{severitySummary.moderate}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Normal (L1-L2)</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">{severitySummary.low}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Today OPD working list</p>
+            {todayOpdAppointments.length ? (
+              <div className="mt-3 space-y-2">
+                {todayOpdAppointments.map((appointment) => (
+                  <div
+                    className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2"
+                    key={appointment.id}
+                  >
+                    <p className="text-sm font-medium text-slate-800">{appointment.patient.name}</p>
+                    <p className="text-xs text-slate-500">
+                      Queue #{appointment.queueRank || "-"} · {formatDateTime(appointment.appointmentDate)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">No OPD appointments for today.</p>
+            )}
+          </div>
+        </article>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {doctorQueue.map((entry) => (
+          <EmergencyCard
+            entry={entry}
+            key={entry.id}
+            onSeverityChange={onEmergencySeverityChange}
+            processingSeverityKeys={processingSeverityKeys}
+            user={user}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -1627,34 +1841,55 @@ function ChatSection({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
-      <aside className="space-y-3">
+      <aside className="space-y-3 rounded-[24px] border border-slate-200 bg-white/95 p-3">
+        <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            Conversations
+          </p>
+          <p className="mt-1 text-sm text-emerald-900">
+            {chats.length} active {chats.length > 1 ? "patients" : "patient"}
+          </p>
+        </div>
         {chats.map((thread) => {
           const peer = user.role === "doctor" ? thread.patient : thread.doctor;
+          const firstInitial = peer.name?.slice(0, 1)?.toUpperCase() || "?";
 
           return (
             <button
               key={thread.id}
-              className={`w-full rounded-[24px] border p-4 text-left transition ${
+              className={`w-full rounded-[20px] border p-3 text-left transition ${
                 selectedChat?.id === thread.id
-                  ? "border-sky-200 bg-sky-50/80"
-                  : "border-slate-200 bg-white/90 hover:border-sky-100 hover:bg-slate-50"
+                  ? "border-emerald-200 bg-emerald-50/70"
+                  : "border-slate-200 bg-white/95 hover:border-emerald-100 hover:bg-slate-50"
               }`}
               onClick={() => onChatSelect(thread.id)}
               type="button"
             >
-              <p className="text-sm font-semibold text-slate-900">{peer.name}</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400">
-                {user.role === "doctor" ? "Patient" : peer.specialization || "Doctor"}
-              </p>
-              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">
-                {thread.latestMessage || "No messages yet."}
-              </p>
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                  {firstInitial}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-900">{peer.name}</p>
+                    <p className="shrink-0 text-[11px] text-slate-500">
+                      {formatDateTime(thread.updatedAt)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {user.role === "doctor" ? "Patient" : peer.specialization || "Doctor"}
+                  </p>
+                  <p className="mt-2 line-clamp-1 text-sm leading-6 text-slate-600">
+                    {thread.latestMessage || "No messages yet."}
+                  </p>
+                </div>
+              </div>
             </button>
           );
         })}
       </aside>
 
-      <div className="info-card">
+      <div className="info-card border-emerald-100">
         <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <p className="eyebrow">Active thread</p>
@@ -1665,23 +1900,26 @@ function ChatSection({
                   : selectedChat.doctor.name
                 : "Conversation"}
             </h4>
+            <p className="mt-1 text-xs text-slate-500">WhatsApp-style quick conversation flow</p>
           </div>
           {selectedChat?.doctor?.specialization ? (
-            <span className="chip">{selectedChat.doctor.specialization}</span>
+            <span className="chip border-emerald-200 bg-emerald-50 text-emerald-800">
+              {selectedChat.doctor.specialization}
+            </span>
           ) : null}
         </div>
 
-        <div className="max-h-[420px] space-y-3 overflow-y-auto pr-2">
+        <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-[20px] bg-slate-50 p-3 pr-2">
           {selectedChat?.messages?.map((message) => {
             const mine = message.sender.id === user.id;
 
             return (
               <div
                 key={message.id}
-                className={`max-w-[85%] rounded-[22px] px-4 py-3 text-sm leading-7 ${
+                className={`max-w-[85%] rounded-[20px] px-4 py-3 text-sm leading-7 shadow-sm ${
                   mine
-                    ? "ml-auto bg-sky-600 text-white"
-                    : "bg-slate-100 text-slate-700"
+                    ? "ml-auto bg-emerald-500 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
                 }`}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] opacity-70">
@@ -1696,12 +1934,12 @@ function ChatSection({
 
         <form className="mt-5 space-y-3" onSubmit={onSendChat}>
           <textarea
-            className="textarea-field"
+            className="textarea-field border-emerald-200 focus-visible:ring-emerald-500/30"
             onChange={(event) => onChatBodyChange(event.target.value)}
-            placeholder="Type a message to continue the conversation..."
+            placeholder="Type a message..."
             value={chatBody}
           />
-          <button className="btn-primary" type="submit">
+          <button className="btn-primary bg-emerald-600 hover:bg-emerald-500" type="submit">
             Send message
           </button>
         </form>
@@ -1798,32 +2036,105 @@ function PrescriptionsSection({
   );
 }
 
-function UsersSection({ users }) {
+function UsersSection({ onUserCreate, onUserDelete, onUserUpdate, user, users }) {
+  const canManage = ["admin", "super_admin"].includes(user?.role);
+  const canCreateDelete = user?.role === "super_admin";
+
   if (!users.length) {
     return <EmptyState message="No users are available in this access level." />;
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {users.map((user) => (
-        <article className="info-card" key={user.id}>
+    <div className="space-y-4">
+      {canCreateDelete ? <CreateUserCard onCreate={onUserCreate} /> : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+      {users.map((item) => (
+        <article className="info-card" key={item.id}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">{formatRole(user.role)}</p>
-              <h4 className="mt-2 text-xl font-semibold text-slate-900">{user.name}</h4>
+              <p className="eyebrow">{formatRole(item.role)}</p>
+              <h4 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h4>
             </div>
-            <span className="chip">{user.department || "General"}</span>
+            <span className="chip">{item.department || "General"}</span>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <InfoRow label="Email" value={user.email} />
-            <InfoRow label="Phone" value={user.phone} />
-            <InfoRow label="Specialization" value={user.specialization || "Not assigned"} />
-            <InfoRow label="Experience" value={`${user.experienceYears || 0} years`} />
+            <InfoRow label="Email" value={item.email} />
+            <InfoRow label="Phone" value={item.phone} />
+            <InfoRow label="Specialization" value={item.specialization || "Not assigned"} />
+            <InfoRow label="Experience" value={`${item.experienceYears || 0} years`} />
           </div>
+          {canManage && item.role === "doctor" ? (
+            <EditDoctorCard onUpdate={onUserUpdate} target={item} />
+          ) : null}
+          {canCreateDelete && !["super_admin", "admin"].includes(item.role) ? (
+            <button className="btn-ghost mt-4 rounded-full border border-rose-200 bg-rose-50 text-rose-700" onClick={() => onUserDelete?.(item.id)} type="button">
+              Delete user
+            </button>
+          ) : null}
         </article>
       ))}
+      </div>
     </div>
+  );
+}
+
+function EditDoctorCard({ onUpdate, target }) {
+  const [form, setForm] = useState({
+    name: target.name || "",
+    email: target.email || "",
+    password: ""
+  });
+
+  return (
+    <div className="mt-4 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Edit doctor access</p>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Doctor name" value={form.name} />
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Doctor email" value={form.email} />
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="New password (optional)" value={form.password} />
+      </div>
+      <button className="btn-primary mt-3" onClick={() => onUpdate?.(target.id, form)} type="button">
+        Update doctor
+      </button>
+    </div>
+  );
+}
+
+function CreateUserCard({ onCreate }) {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "doctor",
+    specialization: "",
+    department: ""
+  });
+
+  return (
+    <article className="info-card">
+      <p className="eyebrow">Super admin controls</p>
+      <h4 className="mt-2 text-xl font-semibold text-slate-900">Create new user</h4>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Name" value={form.name} />
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Email" value={form.email} />
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, phone: event.target.value }))} placeholder="Phone" value={form.phone} />
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password" value={form.password} />
+        <select className="select-field" onChange={(event) => setForm((c) => ({ ...c, role: event.target.value }))} value={form.role}>
+          <option value="doctor">Doctor</option>
+          <option value="nurse">Nurse</option>
+          <option value="receptionist">Receptionist</option>
+          <option value="patient">Patient</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, specialization: event.target.value }))} placeholder="Specialization (doctor)" value={form.specialization} />
+      </div>
+      <button className="btn-primary mt-4" onClick={() => onCreate?.(form)} type="button">
+        Create user
+      </button>
+    </article>
   );
 }
 
@@ -2011,6 +2322,7 @@ function AppointmentCard({
   appointment,
   detailed = false,
   onSeverityChange,
+  onOpenChatFromAppointment,
   processingSeverityKeys = [],
   user
 }) {
@@ -2051,6 +2363,16 @@ function AppointmentCard({
             {appointment.patientNotes || appointment.decisionNotes || "No notes added."}
           </p>
         </div>
+      ) : null}
+
+      {canEditSeverity ? (
+        <button
+          className="btn-secondary mt-4"
+          onClick={() => onOpenChatFromAppointment?.(appointment)}
+          type="button"
+        >
+          Open chat with {appointment.patient.name}
+        </button>
       ) : null}
 
       {canEditSeverity ? (
@@ -2118,7 +2440,7 @@ function SeverityControl({ currentSeverity, isBusy, label, onChange }) {
         </span>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid gap-2 sm:grid-cols-5">
         {SEVERITY_PRESETS.map((preset) => {
           const isActive = activeTier === preset.key;
 
@@ -2144,6 +2466,44 @@ function SeverityControl({ currentSeverity, isBusy, label, onChange }) {
           ? "Saving the new severity level..."
           : "Doctors can update patient severity directly from the dashboard."}
       </p>
+    </div>
+  );
+}
+
+function AdmissionShiftControl({ admissionId, currentShiftedTo, onUpdate }) {
+  const [shiftedTo, setShiftedTo] = useState(currentShiftedTo || "");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setShiftedTo(currentShiftedTo || "");
+  }, [currentShiftedTo]);
+
+  async function handleUpdate() {
+    if (!shiftedTo.trim()) {
+      return;
+    }
+
+    setBusy(true);
+    await onUpdate?.(admissionId, shiftedTo.trim());
+    setBusy(false);
+  }
+
+  return (
+    <div className="mt-4 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+        Shift patient location
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          className="input-field flex-1"
+          onChange={(event) => setShiftedTo(event.target.value)}
+          placeholder="Example: ICU-301 or OT-2"
+          value={shiftedTo}
+        />
+        <button className="btn-primary" disabled={busy || !shiftedTo.trim()} onClick={handleUpdate} type="button">
+          {busy ? "Updating..." : "Update shift"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -2289,33 +2649,78 @@ function severityClass(value) {
 function getSeverityTierKey(value) {
   const severity = Number(value || 1);
 
+  if (severity >= 5) {
+    return "very_critical";
+  }
+
   if (severity >= 4) {
-    return "critical";
+    return "high";
+  }
+
+  if (severity >= 3) {
+    return "medium";
   }
 
   if (severity >= 2) {
-    return "medium";
+    return "mild";
   }
 
   return "low";
 }
 
 function formatSeverityTierLabel(value) {
+  const severity = Number(value || 1);
   const tier = getSeverityTierKey(value);
 
-  if (tier === "critical") {
-    return "Critical (4-5)";
+  if (tier === "very_critical") {
+    return "Critical (Level 5)";
+  }
+
+  if (tier === "high") {
+    return "High (Level 4)";
   }
 
   if (tier === "medium") {
-    return "Medium (2-3)";
+    return "Medium (Level 3)";
   }
 
-  return "Low (1)";
+  if (tier === "mild") {
+    return "Mild (Level 2)";
+  }
+
+  return `Low (Level ${severity})`;
 }
 
 function getPrescriptionByPatient(prescriptions, patientId) {
   return (prescriptions || []).find((item) => item.patient.id === patientId) || null;
+}
+
+function buildDoctorTodayOpdQueue(appointments, doctorId) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return [...(appointments || [])]
+    .filter((appointment) => {
+      if (Number(appointment.doctor?.id) !== Number(doctorId)) {
+        return false;
+      }
+
+      if (!ACTIVE_OPD_STATUSES.has(appointment.status)) {
+        return false;
+      }
+
+      const appointmentTime = new Date(appointment.appointmentDate);
+      return appointmentTime >= start && appointmentTime < end;
+    })
+    .sort((left, right) => {
+      if (Number(left.queueRank || 999) !== Number(right.queueRank || 999)) {
+        return Number(left.queueRank || 999) - Number(right.queueRank || 999);
+      }
+
+      return new Date(left.appointmentDate) - new Date(right.appointmentDate);
+    });
 }
 
 function buildOpdQueueGroups(appointments) {

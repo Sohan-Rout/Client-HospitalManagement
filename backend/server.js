@@ -6,6 +6,7 @@ const cors = require("cors");
 const { dbPath, initializeDatabase } = require("./config/db");
 const appointmentsRoutes = require("./routes/appointments");
 const authRoutes = require("./routes/auth");
+const admissionsRoutes = require("./routes/admissions");
 const bootstrapRoutes = require("./routes/bootstrap");
 const chatRoutes = require("./routes/chat");
 const emergencyRoutes = require("./routes/emergency");
@@ -55,6 +56,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/admissions", admissionsRoutes);
 app.use("/api", bootstrapRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/appointments", appointmentsRoutes);
@@ -78,6 +80,12 @@ if (hasFrontendBuild) {
     }
 
     res.sendFile(frontendFile);
+  });
+} else {
+  app.get("*", (req, res) => {
+    res.status(503).json({
+      error: "Frontend build not found. Run `npm run build` or `npm run dev:frontend`."
+    });
   });
 }
 

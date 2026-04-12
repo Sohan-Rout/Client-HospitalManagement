@@ -49,50 +49,43 @@ export const ROLE_CONFIGS = {
     label: "Patient",
     subtitle: "Personal care workspace",
     description:
-      "Book appointments, monitor queue status, chat with your doctor, and review prescription history.",
-    sections: ["overview", "appointments", "queue", "chat", "prescriptions", "notifications"]
+      "Book appointments, chat with your doctor, and review prescription history.",
+    sections: ["appointments", "chat", "prescriptions", "notifications"]
   },
   doctor: {
     label: "Doctor",
     subtitle: "Clinical workspace",
     description:
       "Review appointment requests, manage urgency, chat with patients, and publish prescription versions.",
-    sections: ["overview", "appointments", "queue", "chat", "prescriptions", "notifications"]
+    sections: ["appointments", "queue", "chat", "prescriptions", "notifications"]
   },
   admin: {
     label: "Admin",
     subtitle: "Operations console",
     description:
       "Manage staff, oversee reports, watch hospital traffic, and coordinate queue pressure.",
-    sections: ["overview", "users", "appointments", "queue", "reports", "notifications"]
+    sections: ["users", "appointments", "reports", "notifications"]
   },
   super_admin: {
     label: "Super Admin",
     subtitle: "System command center",
     description:
       "Full control over hospital access, operations reporting, queue risk, and account governance.",
-    sections: ["overview", "users", "appointments", "queue", "reports", "notifications"]
+    sections: ["users", "appointments", "reports", "notifications"]
   },
   nurse: {
     label: "Nurse",
     subtitle: "Ward medication desk",
     description:
       "See only admitted patients, review ward care notes, and follow doctor-prescribed medicine doses.",
-    sections: ["overview", "admissions", "prescriptions", "notifications"]
+    sections: ["admissions", "prescriptions", "notifications"]
   },
   receptionist: {
     label: "Receptionist",
     subtitle: "Front desk workflow",
     description:
       "Register patients, manage appointments, follow the OPD queue, and handle front-desk billing without emergency access.",
-    sections: ["overview", "patients", "appointments", "opd", "billing", "notifications"]
-  },
-  staff: {
-    label: "Staff",
-    subtitle: "Emergency intake desk",
-    description:
-      "Add emergency patients, assign severity, and keep the priority queue moving in the right order.",
-    sections: ["overview", "queue", "notifications"]
+    sections: ["patients", "appointments", "admissions", "opd", "billing", "notifications"]
   }
 };
 
