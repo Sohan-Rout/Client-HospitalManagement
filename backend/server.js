@@ -81,6 +81,12 @@ if (hasFrontendBuild) {
 
     res.sendFile(frontendFile);
   });
+} else {
+  app.get("*", (req, res) => {
+    res.status(503).json({
+      error: "Frontend build not found. Run `npm run build` or `npm run dev:frontend`."
+    });
+  });
 }
 
 initializeDatabase()
