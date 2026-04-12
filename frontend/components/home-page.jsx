@@ -1,5 +1,5 @@
 "use client";
-
+import Navbar from "./ui/navbar";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -307,23 +307,7 @@ export default function HomePage() {
       <div className="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-orange-200/35 blur-3xl" />
 
       <div className="page-wrap relative space-y-8 pb-12 pt-6 md:space-y-10 md:pb-20">
-        <header className="panel flex flex-col gap-5 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-gradient-to-br from-sky-600 to-sky-800 text-white shadow-[0_20px_40px_rgba(22,118,210,0.24)]">
-              <LogoMark />
-            </div>
-            <div>
-              <p className="eyebrow">ABC Hospital</p>
-              <h1 className="text-xl font-semibold text-slate-900">Care Portal</h1>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="chip">Next.js frontend</span>
-            <span className="chip">Tailwind styling</span>
-            <span className="chip">API-first backend</span>
-          </div>
-        </header>
+        <Navbar />
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
