@@ -44,7 +44,7 @@ export default function Navbar(){
                 ))}
             </ul>
 
-            <a className='px-6 py-4 rounded-full duration-300 hover:bg-orange-400 shadow-lg bg-orange-500 text-white' href="/">Get Started</a>
+            <a className='px-6 py-4 rounded-full duration-300 hover:bg-orange-400 shadow-lg bg-orange-500 text-white' href="/login">Get Started</a>
         </main>
     );
 }

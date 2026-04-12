@@ -21,6 +21,7 @@ import {
   rememberRecentLogin,
   saveStoredSession
 } from "../lib/session";
+import Features from "./home/features";
 
 const ACCESS_ORDER = [
   "patient",
@@ -311,6 +312,8 @@ export default function HomePage() {
         <Navbar />
 
         <Hero />
+
+        <Features />
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
