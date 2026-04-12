@@ -87,6 +87,7 @@ const SEVERITY_PRESETS = [
 export default function DashboardPage({ role }) {
   const router = useRouter();
   const refreshDashboardRef = useRef(null);
+  const roleConfig = ROLE_CONFIGS[role];
   const [state, setState] = useState({
     loading: true,
     refreshing: false,
@@ -105,6 +106,19 @@ export default function DashboardPage({ role }) {
   });
 
   useEffect(() => {
+    if (roleConfig) {
+      return;
+    }
+
+    clearStoredSession();
+    router.replace("/");
+  }, [roleConfig, router]);
+
+  useEffect(() => {
+    if (!roleConfig) {
+      return undefined;
+    }
+
     const savedThemeMode = window.localStorage.getItem("portal-theme-mode");
     const nextMode = savedThemeMode || "system";
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -114,9 +128,13 @@ export default function DashboardPage({ role }) {
       ...current,
       themeMode: nextMode
     }));
-  }, []);
+  }, [roleConfig]);
 
   useEffect(() => {
+    if (!roleConfig) {
+      return undefined;
+    }
+
     let ignore = false;
 
     async function loadDashboard() {
@@ -149,7 +167,13 @@ export default function DashboardPage({ role }) {
           return;
         }
 
-        const config = ROLE_CONFIGS[me.user.role] || ROLE_CONFIGS.patient;
+        const config = ROLE_CONFIGS[me.user.role];
+
+        if (!config) {
+          clearStoredSession();
+          router.replace("/");
+          return;
+        }
         const queue = sortEmergencyQueue(bootstrap.emergencyQueue || []);
 
         saveStoredSession({
@@ -188,7 +212,7 @@ export default function DashboardPage({ role }) {
     return () => {
       ignore = true;
     };
-  }, [role, router]);
+  }, [role, roleConfig, router]);
 
   async function refreshDashboard(notice = "") {
     setState((current) => ({

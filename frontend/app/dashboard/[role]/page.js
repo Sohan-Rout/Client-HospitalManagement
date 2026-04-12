@@ -9,7 +9,8 @@ export function generateStaticParams() {
     { role: "admin" },
     { role: "super_admin" },
     { role: "nurse" },
-    { role: "receptionist" }
+    { role: "receptionist" },
+    { role: "staff" }
   ];
 }
 
