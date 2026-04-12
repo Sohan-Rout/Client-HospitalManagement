@@ -5,6 +5,7 @@ const {
   countLinkedRecords,
   createUser,
   deleteUser,
+  fetchUsers,
   findUserConflictByEmailOrPhone,
   getUserById,
   getUserDeleteTarget,
@@ -223,6 +224,28 @@ router.delete(
       });
     } catch (error) {
       res.status(500).json({ error: "Unable to delete the user." });
+    }
+  }
+);
+
+router.get(
+  "/",
+  authMiddleware,
+  requireRole("super_admin", "admin", "receptionist"),
+  async (req, res) => {
+    try {
+      const filters = {
+        search: String(req.query.search || "").trim(),
+        role: String(req.query.role || "").trim().toLowerCase()
+      };
+
+      const users = await fetchUsers(req.user, filters);
+      res.json({
+        success: true,
+        users: users.map(sanitizeUser)
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Unable to fetch users." });
     }
   }
 );
