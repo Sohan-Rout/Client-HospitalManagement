@@ -1,5 +1,6 @@
 "use client";
-
+import Navbar from "./ui/navbar";
+import Hero from "./home/hero";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,7 @@ import {
   rememberRecentLogin,
   saveStoredSession
 } from "../lib/session";
+import Features from "./home/features";
 
 const ACCESS_ORDER = [
   "patient",
@@ -307,41 +309,15 @@ export default function HomePage() {
       <div className="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-orange-200/35 blur-3xl" />
 
       <div className="page-wrap relative space-y-8 pb-12 pt-6 md:space-y-10 md:pb-20">
-        <header className="panel flex flex-col gap-5 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-gradient-to-br from-sky-600 to-sky-800 text-white shadow-[0_20px_40px_rgba(22,118,210,0.24)]">
-              <LogoMark />
-            </div>
-            <div>
-              <p className="eyebrow">ABC Hospital</p>
-              <h1 className="text-xl font-semibold text-slate-900">Care Portal</h1>
-            </div>
-          </div>
+        <Navbar />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="chip">Next.js frontend</span>
-            <span className="chip">Tailwind styling</span>
-            <span className="chip">API-first backend</span>
-          </div>
-        </header>
+        <Hero />
+
+        <Features />
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
-            <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-gradient-to-l from-sky-100/80 to-transparent lg:block" />
-            <div className="float-drift absolute -right-10 top-10 hidden h-36 w-36 rounded-full bg-white/70 blur-3xl lg:block" />
             <div className="relative space-y-6">
-              <div className="space-y-4">
-                <span className="chip bg-white/90 text-sky-700">Unified portal login for every care role</span>
-                <h2 className="max-w-2xl text-4xl font-semibold leading-tight text-slate-950 md:text-6xl">
-                  A cleaner hospital sign-in experience for patients, doctors, nurses, and admins.
-                </h2>
-                <p className="max-w-2xl text-base leading-8 text-slate-600">
-                  The login flow now feels more premium and more practical: quick role shortcuts,
-                  Google sign-in, clearer password controls, returning-user cues, and a calmer
-                  healthcare visual language across desktop and mobile.
-                </p>
-              </div>
-
               <div className="grid gap-4 md:grid-cols-3">
                 {TRUST_MARKERS.map((item) => (
                   <div key={item.label} className="auth-stat">
