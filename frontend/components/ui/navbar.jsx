@@ -2,6 +2,7 @@ import Activity from "lucide-react/dist/esm/icons/activity";
 import House from "lucide-react/dist/esm/icons/house";
 import TableOfContent from "lucide-react/dist/esm/icons/table-of-contents";
 import QuestionMark from "lucide-react/dist/esm/icons/circle-question-mark";
+import BookMarkMinus from "lucide-react/dist/esm/icons/bookmark-minus";
 
 const navlinks = [
     {
@@ -19,32 +20,36 @@ const navlinks = [
         title : "Services",
         link : "/",
     },
+    {
+        icon : <BookMarkMinus size={18} />,
+        title : "Blogs",
+        link : "/",
+    },
 ];
 
 export default function Navbar(){
     return(
-        <main className="flex bg-white py-2 px-4 rounded-2xl justify-between items-center">
+        <main className="flex bg-none py-2 px-24 justify-between items-center">
             <div className="flex items-center justify-center gap-2">
-                <span className="p-2 bg-cyan-500 rounded-2xl">
+                <span className="p-2 bg-blue-500 rounded-2xl">
                     <Activity className="text-white" />
                 </span>
                 <div className="flex flex-col items-start">
-                    <h1 className="text-black font-semibold uppercase">ABC Hospital</h1>
-                    <span className="text-xs">Care Portal</span>
+                    <h1 className="text-black text-2xl">Lunira</h1>
                 </div>
             </div>
 
-            <ul className="flex text-sm gap-4">
+            <ul className="flex text-sm gap-2">
                 {navlinks.map((item, index) => (
                     <li key={index}>
-                        <a href={item.Link} className="flex gap-2 items-center bg-neutral-100 px-4 py-2 rounded-full">
+                        <a href={item.Link} className="flex gap-2 items-center px-4 py-2 rounded-full">
                             {item.icon}{item.title}
                         </a>
                     </li>
                 ))}
             </ul>
 
-            <a className='px-6 py-4 rounded-full duration-300 hover:bg-orange-400 shadow-lg bg-orange-500 text-white' href="/login">Get Started</a>
+            <a className='px-6 py-3 rounded-full duration-300 hover:bg-blue-400 shadow-lg bg-blue-500 text-white' href="/login">Get Started</a>
         </main>
     );
 }

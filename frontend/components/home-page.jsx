@@ -1,6 +1,7 @@
 "use client";
 import Navbar from "./ui/navbar";
 import Hero from "./home/hero";
+import Solution from "./home/solution";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -304,16 +305,14 @@ export default function HomePage() {
         strategy="afterInteractive"
       />
 
-      <div className="pointer-events-none absolute inset-0 ambient-grid opacity-40" />
-      <div className="pointer-events-none absolute -left-16 top-24 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-orange-200/35 blur-3xl" />
-
-      <div className="page-wrap relative space-y-8 pb-12 pt-6 md:space-y-10 md:pb-20">
+      <div className="relative space-y-8 pb-12 pt-6 bg-neutral-50/97 md:space-y-10 md:pb-20">
         <Navbar />
 
         <Hero />
 
         <Features />
+
+        <Solution />
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
