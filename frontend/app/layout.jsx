@@ -1,4 +1,5 @@
 import "./globals.css";
+import SmoothScroll from "../components/ui/SmoothScroll";
 
 export const metadata = {
   title: "ABC Hospital Portal",
@@ -9,7 +10,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SmoothScroll>
+          {children}
+        </SmoothScroll>
+      </body>
     </html>
   );
 }

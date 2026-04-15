@@ -1,5 +1,6 @@
 import Navbar from "../components/ui/navbar"
 import Hero from "../components/home/hero"
+import Strip from "../components/home/strip"
 
 export default function Home(){
     return(
@@ -10,6 +11,10 @@ export default function Home(){
 
             <div>
                 <Hero />
+            </div>
+
+            <div className="flex items-center justify-center">
+              <Strip />
             </div>
         </main>
     )
