@@ -35,21 +35,21 @@ export default function Navbar(){
                     <Activity className="text-white" />
                 </span>
                 <div className="flex flex-col items-start">
-                    <h1 className="text-black text-2xl">Lunira</h1>
+                    <h1 className="text-black text-2xl">Doctera</h1>
                 </div>
             </div>
 
             <ul className="flex text-sm gap-2">
                 {navlinks.map((item, index) => (
                     <li key={index}>
-                        <a href={item.Link} className="flex gap-2 items-center px-4 py-2 rounded-full">
+                        <a href={item.link} className="flex gap-2 items-center px-4 py-2 rounded-full">
                             {item.icon}{item.title}
                         </a>
                     </li>
                 ))}
             </ul>
 
-            <a className='px-6 py-3 rounded-full duration-300 hover:bg-blue-400 shadow-lg bg-blue-500 text-white' href="/login">Get Started</a>
+            <a className='px-6 py-3 rounded-full duration-300 hover:bg-blue-400 shadow-lg bg-blue-500 text-white' href="./login">Get Started</a>
         </main>
     );
 }
