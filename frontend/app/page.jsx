@@ -12,7 +12,7 @@ import Footer from "../components/home/footer"
 
 export default function Home(){
     return(
-        <main className="relative space-y-8 pb-12 pt-6 bg-neutral-50/97 md:space-y-10 md:pb-20">
+        <main className="relative pt-6 bg-neutral-50/97">
             <div>
                 <Navbar />
             </div>
