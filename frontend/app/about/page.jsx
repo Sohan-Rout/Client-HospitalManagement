@@ -2,6 +2,9 @@ import Navbar from "../../components/ui/navbar";
 import AboutHero from "../../components/about/hero";
 import AboutUs from "../../components/about/aboutUs";
 import Advantage from "../../components/home/advantage"
+import Team from "../../components/home/team"
+import Cta from "../../components/home/cta"
+import Footer from "../../components/home/footer"
 
 export default function Page(){
     return(
@@ -20,6 +23,18 @@ export default function Page(){
 
             <div className="max-w-6xl mx-auto py-24">
                 <Advantage />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                <Team />
+            </div>
+
+            <div className="max-w-6xl mx-auto py-24">
+                <Cta />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                <Footer />
             </div>
         </main>
     );
