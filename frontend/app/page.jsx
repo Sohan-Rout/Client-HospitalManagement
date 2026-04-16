@@ -7,6 +7,8 @@ import Services from "../components/home/services"
 import Team from "../components/home/team"
 import Advantage from "../components/home/advantage"
 import Faq from "../components/home/faq"
+import Cta from "../components/home/cta"
+import Footer from "../components/home/footer"
 
 export default function Home(){
     return(
@@ -45,6 +47,14 @@ export default function Home(){
 
             <div className="max-w-6xl mx-auto py-12">
                 <Faq />
+            </div>
+
+            <div className="max-w-6xl mx-auto py-12">
+                <Cta />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                <Footer />
             </div>
         </main>
     )
