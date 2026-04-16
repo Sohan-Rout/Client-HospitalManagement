@@ -13,12 +13,12 @@ const navlinks = [
     {
         icon : <QuestionMark size={18} />,
         title : "About Us",
-        link : "/",
+        link : "/about",
     },
     {
         icon : <TableOfContent size={18} />,
         title : "Services",
-        link : "/",
+        link : "/services",
     },
     {
         icon : <BookMarkMinus size={18} />,
