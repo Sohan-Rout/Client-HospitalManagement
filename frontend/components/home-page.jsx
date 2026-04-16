@@ -1,7 +1,5 @@
 "use client";
 import Navbar from "./ui/navbar";
-import Hero from "./home/hero";
-import Solution from "./home/solution";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -307,12 +305,6 @@ export default function HomePage() {
 
       <div className="relative space-y-8 pb-12 pt-6 bg-neutral-50/97 md:space-y-10 md:pb-20">
         <Navbar />
-
-        <Hero />
-
-        <Features />
-
-        <Solution />
 
         <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
           <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">

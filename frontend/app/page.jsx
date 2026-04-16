@@ -3,6 +3,7 @@ import Hero from "../components/home/hero"
 import Strip from "../components/home/strip"
 import MovingStrip from "../components/home/movingStrip"
 import About from "../components/home/about"
+import Services from "../components/home/services"
 
 export default function Home(){
     return(
@@ -23,8 +24,12 @@ export default function Home(){
               <MovingStrip />
             </div>
 
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl pb-12 mx-auto">
               <About />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                <Services />
             </div>
         </main>
     )
