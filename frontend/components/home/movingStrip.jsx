@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 export default function MovingStrip(){
     return (
-        <div className="w-full">
+        <div className="overflow-x-hidden py-2 w-full">
           <motion.div
             className="flex gap-10 items-center"
             animate={{ x: ["0%", "-50%"] }}

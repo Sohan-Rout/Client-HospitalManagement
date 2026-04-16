@@ -2,6 +2,7 @@ import Navbar from "../components/ui/navbar"
 import Hero from "../components/home/hero"
 import Strip from "../components/home/strip"
 import MovingStrip from "../components/home/movingStrip"
+import About from "../components/home/about"
 
 export default function Home(){
     return(
@@ -20,6 +21,10 @@ export default function Home(){
 
             <div className="py-18">
               <MovingStrip />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+              <About />
             </div>
         </main>
     )
