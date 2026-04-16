@@ -1,6 +1,5 @@
 "use client";
 import Navbar from "./ui/navbar";
-import Hero from "./home/hero";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,30 +11,16 @@ import {
   ROLE_CONFIGS,
   SERVICE_SPOTLIGHTS,
   formatDateTime,
-  formatRole
+  formatRole,
 } from "../lib/constants";
 import {
   clearStoredSession,
   getRecentLogin,
   getStoredSession,
   rememberRecentLogin,
-  saveStoredSession
+  saveStoredSession,
 } from "../lib/session";
 import Features from "./home/features";
-
-const ACCESS_ORDER = [
-  "patient",
-  "doctor",
-  "nurse",
-  "receptionist",
-  "admin",
-  "super_admin"
-];
-const TRUST_MARKERS = [
-  { label: "Response window", value: "< 30 sec" },
-  { label: "Role routing", value: "Auto" },
-  { label: "Mobile ready", value: "100%" }
-];
 
 function resolveDashboardPath(role) {
   const normalizedRole = String(role || "").trim();
@@ -53,7 +38,7 @@ export default function HomePage() {
   const [googleConfig, setGoogleConfig] = useState({
     loading: true,
     enabled: false,
-    clientId: ""
+    clientId: "",
   });
   const [message, setMessage] = useState({ type: "", text: "" });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -62,13 +47,13 @@ export default function HomePage() {
   const [localTime, setLocalTime] = useState(new Date());
   const [loginForm, setLoginForm] = useState({
     identifier: "",
-    password: ""
+    password: "",
   });
   const [registerForm, setRegisterForm] = useState({
     name: "",
     email: "",
     phone: "",
-    password: ""
+    password: "",
   });
 
   useEffect(() => {
@@ -99,7 +84,7 @@ export default function HomePage() {
 
         saveStoredSession({
           token: session.token,
-          user: response.user
+          user: response.user,
         });
         const redirectPath = resolveDashboardPath(response.user.role);
 
@@ -107,7 +92,7 @@ export default function HomePage() {
           clearStoredSession();
           setMessage({
             type: "error",
-            text: "This account role no longer has a dashboard. Please contact super admin."
+            text: "This account role no longer has a dashboard. Please contact super admin.",
           });
           return;
         }
@@ -135,7 +120,7 @@ export default function HomePage() {
         setGoogleConfig({
           loading: false,
           enabled: Boolean(response.enabled && response.clientId),
-          clientId: response.clientId || ""
+          clientId: response.clientId || "",
         });
       })
       .catch(() => {
@@ -143,7 +128,7 @@ export default function HomePage() {
           setGoogleConfig({
             loading: false,
             enabled: false,
-            clientId: ""
+            clientId: "",
           });
         }
       });
@@ -159,7 +144,7 @@ export default function HomePage() {
     if (!credential) {
       setMessage({
         type: "error",
-        text: "Google sign-in did not return a valid credential."
+        text: "Google sign-in did not return a valid credential.",
       });
       return;
     }
@@ -170,13 +155,16 @@ export default function HomePage() {
     try {
       const response = await apiFetch("/auth/google", {
         method: "POST",
-        body: { credential }
+        body: { credential },
       });
-      finalizeAuth(response, "Google sign-in successful. Opening your workspace.");
+      finalizeAuth(
+        response,
+        "Google sign-in successful. Opening your workspace.",
+      );
     } catch (error) {
       setMessage({
         type: "error",
-        text: error.message
+        text: error.message,
       });
     } finally {
       setGoogleBusy(false);
@@ -199,14 +187,14 @@ export default function HomePage() {
       callback: (googleResponse) => googleHandlerRef.current?.(googleResponse),
       auto_select: false,
       context: "signin",
-      ux_mode: "popup"
+      ux_mode: "popup",
     });
     window.google.accounts.id.renderButton(googleButtonRef.current, {
       theme: "outline",
       size: "large",
       text: "continue_with",
       shape: "pill",
-      width: 360
+      width: 360,
     });
   }, [googleConfig.clientId, googleConfig.enabled, googleScriptReady]);
 
@@ -216,12 +204,12 @@ export default function HomePage() {
 
     saveStoredSession({
       token: response.token,
-      user: response.user
+      user: response.user,
     });
     setRecentLogin(recent);
     setMessage({
       type: "success",
-      text: successText
+      text: successText,
     });
     const redirectPath = resolveDashboardPath(response.user.role);
 
@@ -229,7 +217,7 @@ export default function HomePage() {
       clearStoredSession();
       setMessage({
         type: "error",
-        text: "This account role no longer has a dashboard. Please contact super admin."
+        text: "This account role no longer has a dashboard. Please contact super admin.",
       });
       return;
     }
@@ -245,14 +233,14 @@ export default function HomePage() {
     try {
       const response = await apiFetch("/auth/login", {
         method: "POST",
-        body: loginForm
+        body: loginForm,
       });
 
       finalizeAuth(response, "Login successful. Opening your care dashboard.");
     } catch (error) {
       setMessage({
         type: "error",
-        text: error.message
+        text: error.message,
       });
     } finally {
       setBusy(false);
@@ -267,14 +255,17 @@ export default function HomePage() {
     try {
       const response = await apiFetch("/auth/register", {
         method: "POST",
-        body: registerForm
+        body: registerForm,
       });
 
-      finalizeAuth(response, "Registration complete. Opening your patient dashboard.");
+      finalizeAuth(
+        response,
+        "Registration complete. Opening your patient dashboard.",
+      );
     } catch (error) {
       setMessage({
         type: "error",
-        text: error.message
+        text: error.message,
       });
     } finally {
       setBusy(false);
@@ -292,7 +283,7 @@ export default function HomePage() {
     setShowLoginPassword(false);
     setMessage({
       type: "success",
-      text: `${formatRole(role)} demo credentials loaded.`
+      text: `${formatRole(role)} demo credentials loaded.`,
     });
   }
 
@@ -304,178 +295,19 @@ export default function HomePage() {
         strategy="afterInteractive"
       />
 
-      <div className="pointer-events-none absolute inset-0 ambient-grid opacity-40" />
-      <div className="pointer-events-none absolute -left-16 top-24 h-48 w-48 rounded-full bg-sky-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-orange-200/35 blur-3xl" />
-
-      <div className="page-wrap relative space-y-8 pb-12 pt-6 md:space-y-10 md:pb-20">
+      <div className="relative space-y-8 pb-12 pt-6 bg-neutral-50/97 md:space-y-10 md:pb-20">
         <Navbar />
 
-        <Hero />
-
-        <Features />
-
-        <section className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
-          <div className="panel fade-in-up relative overflow-hidden px-7 py-8 sm:px-9 sm:py-10">
-            <div className="relative space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                {TRUST_MARKERS.map((item) => (
-                  <div key={item.label} className="auth-stat">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
-                      {item.label}
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-slate-950">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                {LANDING_FEATURES.map((feature) => (
-                  <article key={feature.title} className="panel-soft p-5">
-                    <p className="eyebrow">Care flow</p>
-                    <h3 className="mt-3 text-lg font-semibold text-slate-900">{feature.title}</h3>
-                    <p className="mt-2 text-sm leading-7 text-slate-600">{feature.description}</p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="panel-soft p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="eyebrow">Workspace access</p>
-                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-                      Login paths tuned for each hospital role
-                    </h3>
-                  </div>
-                  <p className="max-w-xl text-sm leading-7 text-slate-600">
-                    Load any demo role in one tap, then use the same polished entry point for staff,
-                    clinical teams, or patient onboarding.
-                  </p>
-                </div>
-
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {ACCESS_ORDER.map((role) => {
-                    const config = ROLE_CONFIGS[role];
-
-                    return (
-                      <article key={role} className="role-tile">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-base font-semibold text-slate-900">
-                              {config?.label || formatRole(role)}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">{config?.subtitle}</p>
-                          </div>
-                          <span className="chip bg-sky-50 text-sky-700">Live</span>
-                        </div>
-                        <p className="mt-4 text-sm leading-6 text-slate-600">
-                          {config?.description}
-                        </p>
-                        <button
-                          className="btn-ghost mt-4 rounded-full border border-slate-200 bg-white"
-                          onClick={() => loadDemo(role)}
-                          type="button"
-                        >
-                          Use {formatRole(role)} demo
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-4">
-                {LANDING_STATS.map((stat) => (
-                  <div key={stat.label} className="summary-card">
-                    <p className="text-3xl font-semibold text-slate-950">{stat.value}</p>
-                    <p className="mt-2 text-sm text-slate-600">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="panel-soft grid gap-5 p-5 md:grid-cols-[1fr,1.1fr]">
-                <div className="space-y-3">
-                  <p className="eyebrow">Clinical focus</p>
-                  <h3 className="text-2xl font-semibold text-slate-900">
-                    Cleaner digital front door for care delivery
-                  </h3>
-                  <p className="text-sm leading-7 text-slate-600">
-                    The refreshed interface keeps a bright medical palette, layered cards, and a
-                    polished appointment-to-dashboard journey inspired by premium health templates.
-                  </p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {SERVICE_SPOTLIGHTS.map((item) => (
-                    <article
-                      key={item.title}
-                      className="rounded-[24px] border border-slate-200/70 bg-white/90 p-4"
-                    >
-                      <h4 className="text-base font-semibold text-slate-900">{item.title}</h4>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">{item.copy}</p>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <aside className="panel fade-in-up px-6 py-6 sm:px-7 sm:py-7">
-            <div className="rounded-[28px] bg-gradient-to-br from-sky-700 via-sky-600 to-cyan-500 p-5 text-white shadow-[0_24px_70px_rgba(22,118,210,0.26)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-100/85">
-                    Secure portal access
-                  </p>
-                  <h3 className="mt-2 text-2xl font-semibold">
-                    Welcome back to coordinated care
-                  </h3>
-                  <p className="mt-3 max-w-lg text-sm leading-7 text-sky-50/90">
-                    Faster entry, clearer feedback, and role-based routing right after sign-in.
-                  </p>
-                </div>
-                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold text-white">
-                  UI/UX refreshed
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[24px] border border-white/18 bg-white/12 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/75">
-                    Local time
-                  </p>
-                  <p className="mt-3 text-lg font-semibold">
-                    {new Intl.DateTimeFormat("en-IN", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true
-                    }).format(localTime)}
-                  </p>
-                  <p className="mt-1 text-sm text-sky-100/80">India Standard Time</p>
-                </div>
-
-                <div className="rounded-[24px] border border-white/18 bg-white/12 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/75">
-                    Recent secure sign-in
-                  </p>
-                  <p className="mt-3 text-lg font-semibold">
-                    {recentLogin ? formatDateTime(recentLogin.loggedInAt) : "First visit"}
-                  </p>
-                  <p className="mt-1 text-sm text-sky-100/80">
-                    {recentLogin
-                      ? `${formatRole(recentLogin.role)} workspace`
-                      : "Use Google or email to continue"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-5 mt-6 grid grid-cols-2 rounded-full bg-slate-100 p-1">
+        <section className="">
+          <div className="panel fade-in-up max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6">
+            <div className="mb-6 grid grid-cols-2 rounded-full bg-neutral-100 p-1">
               {["login", "register"].map((item) => (
                 <button
                   key={item}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    tab === item ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"
+                  className={`rounded-full px-4 py-2 text-sm transition ${
+                    tab === item
+                      ? "bg-blue-500 text-white shadow-sm"
+                      : "text-black"
                   }`}
                   onClick={() => setTab(item)}
                   type="button"
@@ -488,7 +320,7 @@ export default function HomePage() {
             {message.text ? (
               <div
                 aria-live="polite"
-                className={`mb-5 rounded-[22px] border px-4 py-3 text-sm ${
+                className={`mb-4 rounded-lg border px-3 py-2 text-xs ${
                   message.type === "error"
                     ? "border-rose-200 bg-rose-50 text-rose-700"
                     : "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -498,30 +330,20 @@ export default function HomePage() {
               </div>
             ) : null}
 
-            <div className="rounded-[24px] border border-slate-200/70 bg-slate-50/90 p-4">
+            <div className="rounded-xl p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="eyebrow">Google access</p>
-                  <h4 className="mt-2 text-lg font-semibold text-slate-950">
+                  <h4 className="text-base font-semibold text-slate-900">
                     {tab === "register"
-                      ? "Continue with Google to create a patient workspace"
-                      : "Continue with Google for a faster sign-in"}
+                      ? "Continue to create a patient workspace"
+                      : "Welcome back"}
                   </h4>
                 </div>
-                <span
-                  className={`chip ${
-                    googleConfig.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100"
-                  }`}
-                >
-                  {googleConfig.loading
-                    ? "Checking"
-                    : googleConfig.enabled
-                      ? "Available"
-                      : "Setup needed"}
-                </span>
               </div>
 
-              <div className={`mt-4 ${googleBusy ? "pointer-events-none opacity-60" : ""}`}>
+              <div
+                className={`mt-3 flex items-center justify-center ${googleBusy ? "pointer-events-none opacity-60" : ""}`}
+              >
                 {googleConfig.enabled ? (
                   googleScriptReady ? (
                     <div
@@ -529,35 +351,41 @@ export default function HomePage() {
                       className="min-h-[44px] rounded-full"
                     />
                   ) : (
-                    <div className="btn-secondary w-full justify-center">Loading Google sign-in...</div>
+                    <div className="btn-secondary w-full justify-center">
+                      Loading Google sign-in...
+                    </div>
                   )
                 ) : (
-                  <button className="btn-secondary w-full justify-center opacity-75" disabled type="button">
-                    Enable Google sign-in in `.env`
+                  <button
+                    className="bg-blue-500 text-white rounded-full w-fit px-6 py-2"
+                    disabled
+                    type="button"
+                  >
+                    Continue with Google
                   </button>
                 )}
               </div>
-
-              <p className="mt-3 text-xs leading-6 text-slate-500">
-                {googleConfig.enabled
-                  ? "Linked Google emails can sign in quickly. First-time Google access creates a patient workspace."
-                  : "Add a real GOOGLE_CLIENT_ID value in your environment to activate this button for deployment."}
-              </p>
             </div>
 
-            <div className="divider-label my-5">or continue with email</div>
+            <div className="my-4 flex items-center gap-2 text-xs text-slate-400">
+              <div className="h-px flex-1 bg-slate-200" />
+              or continue with
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
 
             {tab === "login" ? (
               <form className="space-y-4" onSubmit={handleLogin}>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Email or phone</label>
+                <div className="space-y-2 flex flex-col">
+                  <label className="text-sm font-medium text-slate-700">
+                    Email or phone
+                  </label>
                   <input
                     autoComplete="username"
-                    className="input-field"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onChange={(event) =>
                       setLoginForm((current) => ({
                         ...current,
-                        identifier: event.target.value
+                        identifier: event.target.value,
                       }))
                     }
                     placeholder="admin@abchospital.com"
@@ -566,15 +394,17 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Password</label>
+                  <label className="text-sm font-medium text-slate-700">
+                    Password
+                  </label>
                   <div className="relative">
                     <input
                       autoComplete="current-password"
-                      className="input-field pr-20"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-20"
                       onChange={(event) =>
                         setLoginForm((current) => ({
                           ...current,
-                          password: event.target.value
+                          password: event.target.value,
                         }))
                       }
                       placeholder="Enter your password"
@@ -583,7 +413,9 @@ export default function HomePage() {
                     />
                     <button
                       className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                      onClick={() => setShowLoginPassword((current) => !current)}
+                      onClick={() =>
+                        setShowLoginPassword((current) => !current)
+                      }
                       type="button"
                     >
                       {showLoginPassword ? "Hide" : "Show"}
@@ -591,10 +423,14 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <button className="btn-primary w-full" disabled={busy} type="submit">
+                <button
+                  className="w-full rounded-lg bg-blue-500 py-2 text-sm font-semibold text-white hover:bg-blue-600 transition"
+                  disabled={busy}
+                  type="submit"
+                >
                   {busy ? "Signing in..." : "Login to dashboard"}
                 </button>
-                <p className="text-center text-xs text-slate-500">
+                <p className="text-center text-[11px] text-slate-400">
                   Press Enter to sign in faster.
                 </p>
               </form>
@@ -602,14 +438,16 @@ export default function HomePage() {
               <form className="space-y-4" onSubmit={handleRegister}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-slate-700">Full name</label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Full name
+                    </label>
                     <input
                       autoComplete="name"
-                      className="input-field"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       onChange={(event) =>
                         setRegisterForm((current) => ({
                           ...current,
-                          name: event.target.value
+                          name: event.target.value,
                         }))
                       }
                       placeholder="Aarav Mehta"
@@ -618,14 +456,16 @@ export default function HomePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Email</label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Email
+                    </label>
                     <input
                       autoComplete="email"
-                      className="input-field"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       onChange={(event) =>
                         setRegisterForm((current) => ({
                           ...current,
-                          email: event.target.value
+                          email: event.target.value,
                         }))
                       }
                       placeholder="patient@abchospital.com"
@@ -634,15 +474,17 @@ export default function HomePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Phone</label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Phone
+                    </label>
                     <input
                       autoComplete="tel"
-                      className="input-field"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       inputMode="numeric"
                       onChange={(event) =>
                         setRegisterForm((current) => ({
                           ...current,
-                          phone: event.target.value
+                          phone: event.target.value,
                         }))
                       }
                       placeholder="9876543210"
@@ -652,15 +494,17 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Password</label>
+                  <label className="text-sm font-medium text-slate-700">
+                    Password
+                  </label>
                   <div className="relative">
                     <input
                       autoComplete="new-password"
-                      className="input-field pr-20"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-20"
                       onChange={(event) =>
                         setRegisterForm((current) => ({
                           ...current,
-                          password: event.target.value
+                          password: event.target.value,
                         }))
                       }
                       placeholder="At least 8 characters"
@@ -669,7 +513,9 @@ export default function HomePage() {
                     />
                     <button
                       className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                      onClick={() => setShowRegisterPassword((current) => !current)}
+                      onClick={() =>
+                        setShowRegisterPassword((current) => !current)
+                      }
                       type="button"
                     >
                       {showRegisterPassword ? "Hide" : "Show"}
@@ -677,31 +523,34 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <button className="btn-primary w-full" disabled={busy} type="submit">
+                <button
+                  className="w-full rounded-lg bg-blue-500 py-2 text-sm font-semibold text-white hover:bg-blue-600 transition"
+                  disabled={busy}
+                  type="submit"
+                >
                   {busy ? "Creating account..." : "Create patient account"}
                 </button>
-                <p className="text-center text-xs text-slate-500">
+                <p className="text-center text-[11px] text-slate-400">
                   Press Enter to create the account instantly.
                 </p>
               </form>
             )}
 
-            <div className="mt-6 rounded-[24px] border border-slate-200/70 bg-slate-50 p-4">
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="eyebrow">Demo roles</p>
+                  <p className="text-xs font-semibold uppercase text-slate-500">Demo roles</p>
                   <p className="mt-2 text-sm text-slate-600">
                     Switch between every workspace without leaving this screen.
                   </p>
                 </div>
-                <span className="chip bg-white text-slate-700">All roles covered</span>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {Object.keys(DEMO_CREDENTIALS).map((role) => (
                   <button
                     key={role}
-                    className="btn-ghost rounded-full border border-slate-200 bg-white"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs hover:bg-slate-100"
                     onClick={() => loadDemo(role)}
                     type="button"
                   >
@@ -710,20 +559,9 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-          </aside>
+          </div>
         </section>
       </div>
     </div>
-  );
-}
-
-function LogoMark() {
-  return (
-    <svg aria-hidden="true" className="h-8 w-8" viewBox="0 0 64 64">
-      <rect fill="currentColor" height="40" rx="12" width="56" x="4" y="14" />
-      <rect fill="rgba(255,255,255,0.28)" height="16" rx="7" width="20" x="22" y="8" />
-      <rect fill="#ffffff" height="24" rx="3" width="8" x="28" y="18" />
-      <rect fill="#ffffff" height="8" rx="3" width="24" x="20" y="26" />
-    </svg>
   );
 }
