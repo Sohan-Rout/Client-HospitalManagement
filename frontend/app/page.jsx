@@ -5,6 +5,7 @@ import MovingStrip from "../components/home/movingStrip"
 import About from "../components/home/about"
 import Services from "../components/home/services"
 import Team from "../components/home/team"
+import Advantage from "../components/home/advantage"
 
 export default function Home(){
     return(
@@ -35,6 +36,10 @@ export default function Home(){
 
             <div className="max-w-6xl mx-auto">
                 <Team />
+            </div>
+
+            <div className="max-w-6xl mx-auto py-12">
+                <Advantage />
             </div>
         </main>
     )
