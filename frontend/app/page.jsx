@@ -4,6 +4,7 @@ import Strip from "../components/home/strip"
 import MovingStrip from "../components/home/movingStrip"
 import About from "../components/home/about"
 import Services from "../components/home/services"
+import Team from "../components/home/team"
 
 export default function Home(){
     return(
@@ -30,6 +31,10 @@ export default function Home(){
 
             <div className="max-w-6xl mx-auto">
                 <Services />
+            </div>
+
+            <div className="max-w-6xl mx-auto">
+                <Team />
             </div>
         </main>
     )

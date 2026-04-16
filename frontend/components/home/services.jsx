@@ -48,7 +48,7 @@ export default function Services() {
         </div>
 
         <div>
-            <a href="/" className="bg-blue-500 py-3 px-4 rounded-full text-white">See All Services</a>
+            <a href="/services" className="bg-blue-500 py-3 px-4 rounded-full text-white">See All Services</a>
         </div>
       </div>
 
