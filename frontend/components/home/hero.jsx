@@ -1,7 +1,7 @@
 export default function Hero(){
     return(
         <main
-          className="flex flex-col lg:flex-row gap-8 items-center h-[70vh] justify-between"
+          className="flex flex-col lg:flex-row gap-8 items-center h-[80vh] justify-between"
         >
           <div className="flex flex-col items-start pl-28 gap-8 max-w-2xl">
             <div className="bg-white border! border-orange-500! px-6 py-2 rounded-full">
