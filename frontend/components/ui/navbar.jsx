@@ -22,8 +22,8 @@ const navlinks = [
     },
     {
         icon : <BookMarkMinus size={18} />,
-        title : "Blogs",
-        link : "/",
+        title : "Contact Us",
+        link : "/contact",
     },
 ];
 

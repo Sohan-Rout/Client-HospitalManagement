@@ -14,8 +14,8 @@ export default function Hero(){
             </div> 
 
             <div className="flex gap-4">
-                <a href="/" className="shadow-lg rounded-full px-6 py-4 bg-blue-500 text-white">Watch Demo</a>
-                <a href="/" className="shadow-lg rounded-full px-6 py-4 bg-white text-black">Learn More</a>
+                <a href="/contact" className="shadow-lg rounded-full px-6 py-4 bg-blue-500 text-white">Book Appointment</a>
+                <a href="/about" className="shadow-lg rounded-full px-6 py-4 bg-white text-black">Learn More</a>
             </div>
           </div>
           <div className="w-full flex justify-center">
