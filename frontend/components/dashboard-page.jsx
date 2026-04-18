@@ -1962,13 +1962,15 @@ function UsersSection({ onUserCreate, onUserDelete, onUserUpdate, user, users })
       {canCreateDelete ? <CreateUserCard onCreate={onUserCreate} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
       {users.map((item) => (
-        <article className="info-card" key={item.id}>
+        <article className="bg-white rounded-2xl p-6 border border-neutral-200" key={item.id}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">{formatRole(item.role)}</p>
-              <h4 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h4>
+              <div className="flex gap-4 items-center">
+                <p className="bg-blue-300 text-sm w-fit px-4 py-2 rounded-full border">{formatRole(item.role)}</p>
+                <p className="bg-emerald-300 text-sm w-fit px-4 py-2 rounded-full border">{item.department || "General"}</p>
+              </div>
+              <h1 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h1>
             </div>
-            <span className="chip">{item.department || "General"}</span>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1981,7 +1983,7 @@ function UsersSection({ onUserCreate, onUserDelete, onUserUpdate, user, users })
             <EditDoctorCard onUpdate={onUserUpdate} target={item} />
           ) : null}
           {canCreateDelete && !["super_admin", "admin"].includes(item.role) ? (
-            <button className="btn-ghost mt-4 rounded-full border border-rose-200 bg-rose-50 text-rose-700" onClick={() => onUserDelete?.(item.id)} type="button">
+            <button className="mt-4 rounded-full px-4 py-2 bg-red-500 text-white text-sm" onClick={() => onUserDelete?.(item.id)} type="button">
               Delete user
             </button>
           ) : null}
@@ -2000,14 +2002,24 @@ function EditDoctorCard({ onUpdate, target }) {
   });
 
   return (
-    <div className="mt-4 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Edit doctor access</p>
-      <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Doctor name" value={form.name} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Doctor email" value={form.email} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="New password (optional)" value={form.password} />
+    <div className="mt-4 flex flex-col rounded-2xl border border-slate-100 bg-slate-50/85 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Edit doctor access</p>
+      <div className="py-4 flex flex-col">
+        <span>
+          Name :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Doctor name" value={form.name} />
+        </span>
+        <span>
+          Email :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Doctor email" value={form.email} />
+        </span>
+
+        <span>
+          Password :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password (optional)" value={form.password} />
+        </span>
       </div>
-      <button className="btn-primary mt-3" onClick={() => onUpdate?.(target.id, form)} type="button">
+      <button className="bg-black w-fit text-white text-sm px-4 py-2 rounded-full" onClick={() => onUpdate?.(target.id, form)} type="button">
         Update doctor
       </button>
     </div>
