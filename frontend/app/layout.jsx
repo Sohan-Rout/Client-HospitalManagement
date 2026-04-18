@@ -2,7 +2,7 @@ import "./globals.css";
 import SmoothScroll from "../components/ui/SmoothScroll";
 
 export const metadata = {
-  title: "ABC Hospital Portal",
+  title: "Doctera Hospital Portal",
   description:
     "Next.js hospital frontend with a Medilo-inspired marketing experience and role-based care dashboard."
 };

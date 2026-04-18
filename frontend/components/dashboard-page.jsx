@@ -1,8 +1,9 @@
 "use client";
-
+import Loader from "./ui/loader";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDownload, apiFetch } from "../lib/api";
+import Navbar from "../components/ui/navbar";
 import {
   ROLE_CONFIGS,
   SECTION_LABELS,
@@ -589,17 +590,7 @@ export default function DashboardPage({ role }) {
 
   if (state.loading) {
     return (
-      <div className="page-wrap py-12">
-        <div className="panel grid min-h-[60vh] place-items-center p-10">
-          <div className="space-y-3 text-center">
-            <p className="eyebrow">Preparing workspace</p>
-            <h1 className="text-3xl font-semibold text-slate-950">Loading dashboard</h1>
-            <p className="text-sm text-slate-600">
-              Connecting your role-specific hospital view and live bootstrap data.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Loader />
     );
   }
 
@@ -623,46 +614,69 @@ export default function DashboardPage({ role }) {
   const activeSectionLabel = SECTION_LABELS[state.activeSection];
 
   return (
-    <div className="page-wrap space-y-6 py-6 pb-14">
+    <div className="space-y-6 py-6 pb-14">
       <div className="grid gap-6 xl:grid-cols-[280px,1fr]">
-        <aside className="panel h-fit p-6 xl:sticky xl:top-6">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-gradient-to-br from-sky-600 to-sky-800 text-white">
-              <LogoMark />
-            </div>
-            <div>
-              <p className="eyebrow">ABC Hospital</p>
-              <h1 className="text-xl font-semibold text-slate-950">{config.label} Dashboard</h1>
-            </div>
+          <Navbar />
+
+          <div className="w-6xl mx-auto">
+          
           </div>
 
-          <p className="rounded-[24px] border border-sky-100 bg-sky-50/80 p-4 text-sm leading-7 text-slate-600">
-            {config.description}
-          </p>
+        <main className="space-y-6">
+          <header className="max-w-6xl mx-auto">
+            <div className="bg-neutral-100 rounded-2xl px-6 py-6 text-black">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-neutral-700">
+                    {config.label} workspace
+                  </p>
+                  <h2 className="text-4xl md:text-4xl">{state.user.name}</h2>
+                </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="auth-stat">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
-                Department
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-950">
-                {state.user.department || "General"}
-              </p>
-            </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button className="border border-blue-500 text-blue-500 px-6 py-2 rounded-full" onClick={() => refreshDashboard()} type="button">
+                    {state.refreshing ? "Refreshing..." : "Refresh"}
+                  </button>
+                  <button
+                    className="rounded-full border border-blue-500 bg-blue-500 px-6 py-2 text-white transition hover:scale-110 duration-300"
+                    onClick={handleLogout}
+                    type="button"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
 
-            <div className="auth-stat">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
-                Workspace email
-              </p>
-              <p className="mt-3 break-all text-sm font-medium text-slate-700">{state.user.email}</p>
-            </div>
-          </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center bg-blue-500 p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-white">
+                    Active section
+                  </p>
+                  <p className="text-xl text-white">{activeSectionLabel}</p>
+                </div>
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center border border-neutral-200 bg-white p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-black">
+                    Department
+                  </p>
+                  <p className="text-xl text-black">
+                    {state.user.department || "General"}
+                  </p>
+                </div>
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center border border-neutral-200 bg-white p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-black">
+                    Workspace email
+                  </p>
+                  <p className="text-xl text-black">{state.user.email}</p>
+                </div>
+              </div>
 
-          <nav className="mt-6 space-y-2">
+              <div className="flex items-center justify-center gap-8 pt-6">
+                <span>Navigate : </span>
+                <nav className="flex justify-center items-center gap-4">
             {config.sections.map((section) => (
               <button
                 key={section}
-                className={`sidebar-link ${state.activeSection === section ? "active" : ""}`}
+                className={`bg-orange-300 text-black border px-6 py-2 flex items-center justify-center gap-2 rounded-lg ${state.activeSection === section ? "active" : ""}`}
                 onClick={() =>
                   setState((current) => ({
                     ...current,
@@ -673,93 +687,12 @@ export default function DashboardPage({ role }) {
                 type="button"
               >
                 <span>{SECTION_LABELS[section]}</span>
-                <span className="text-xs uppercase tracking-[0.24em] opacity-70">
-                  {String(config.sections.indexOf(section) + 1).padStart(2, "0")}
+                <span className="text-xs bg-black text-white px-2 py-1 rounded-full">
+                  {String(config.sections.indexOf(section) + 1).padStart(2, "")}
                 </span>
               </button>
             ))}
           </nav>
-
-          <div className="mt-6 space-y-3 rounded-[26px] bg-slate-950 px-5 py-5 text-white">
-            <p className="eyebrow text-sky-200">Live access</p>
-            <h2 className="text-xl font-semibold">{state.user.name}</h2>
-            <p className="text-sm leading-7 text-slate-300">{config.subtitle}</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="chip border-white/10 bg-white/10 text-white">
-                {formatRole(state.user.role)}
-              </span>
-              <span className="chip border-white/10 bg-white/10 text-white">
-                {unreadCount} unread alerts
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        <main className="space-y-6">
-          <header className="panel overflow-hidden p-0">
-            <div className="bg-gradient-to-r from-slate-950 via-sky-900 to-cyan-600 px-6 py-6 text-white">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-sky-100/80">
-                    {config.label} workspace
-                  </p>
-                  <h2 className="text-3xl font-semibold md:text-4xl">{state.user.name}</h2>
-                  <p className="max-w-3xl text-sm leading-7 text-sky-50/85">
-                    {state.bootstrap.summary.headline}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white outline-none"
-                    onChange={(event) => handleThemeModeChange(event.target.value)}
-                    value={state.themeMode}
-                  >
-                    <option className="text-slate-900" value="system">
-                      Theme: System
-                    </option>
-                    <option className="text-slate-900" value="light">
-                      Theme: Light
-                    </option>
-                    <option className="text-slate-900" value="dark">
-                      Theme: Dark
-                    </option>
-                  </select>
-                  <span className="rounded-full bg-white/14 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
-                    {config.subtitle}
-                  </span>
-                  <button className="btn-secondary" onClick={() => refreshDashboard()} type="button">
-                    {state.refreshing ? "Refreshing..." : "Refresh"}
-                  </button>
-                  <button
-                    className="rounded-full border border-white/16 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/16"
-                    onClick={handleLogout}
-                    type="button"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Active section
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">{activeSectionLabel}</p>
-                </div>
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Auto refresh
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">10 sec</p>
-                </div>
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Workspace modules
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">{config.sections.length}</p>
-                </div>
               </div>
             </div>
 
