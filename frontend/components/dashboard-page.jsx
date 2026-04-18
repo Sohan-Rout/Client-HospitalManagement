@@ -1,5 +1,6 @@
 "use client";
 import Loader from "./ui/loader";
+import SessionExpiry from "./ui/sessionExpiry";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDownload, apiFetch } from "../lib/api";
@@ -596,16 +597,7 @@ export default function DashboardPage({ role }) {
 
   if (!state.user || !state.bootstrap) {
     return (
-      <div className="page-wrap py-12">
-        <div className="panel p-10 text-center">
-          <p className="eyebrow">Session required</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-950">Unable to load dashboard</h1>
-          <p className="mt-3 text-sm text-slate-600">{state.error || "Please sign in again."}</p>
-          <button className="btn-primary mt-6" onClick={() => router.replace("/")} type="button">
-            Back to login
-          </button>
-        </div>
-      </div>
+      <SessionExpiry />
     );
   }
 
@@ -614,15 +606,11 @@ export default function DashboardPage({ role }) {
   const activeSectionLabel = SECTION_LABELS[state.activeSection];
 
   return (
-    <div className="space-y-6 py-6 pb-14">
+    <div className="py-6 pb-14">
       <div className="grid gap-6 xl:grid-cols-[280px,1fr]">
           <Navbar />
 
-          <div className="w-6xl mx-auto">
-          
-          </div>
-
-        <main className="space-y-6">
+        <main className="">
           <header className="max-w-6xl mx-auto">
             <div className="bg-neutral-100 rounded-2xl px-6 py-6 text-black">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -711,29 +699,21 @@ export default function DashboardPage({ role }) {
             </div>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2 xl:grid-cols-3">
             {(state.bootstrap.summary.cards || []).map((card) => (
-              <article key={card.label} className="summary-card relative overflow-hidden">
-                <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-sky-100/70 blur-2xl" />
+              <div key={card.label} className="bg-neutral-100 border flex flex-col items-center justify-center border-neutral-200 p-6 rounded-2xl relative overflow-hidden">
                 <p className="eyebrow">{card.label}</p>
                 <h3 className="mt-3 text-4xl font-semibold text-slate-950">{card.value}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{card.helper}</p>
-              </article>
+              </div>
             ))}
+            <div className="bg-blue-500 text-white border flex flex-col items-center justify-center border-neutral-200 p-6 rounded-2xl relative overflow-hidden">
+                <p className="text-neutral-100">Current Section View</p>
+                <p className="mt-3 text-2xl leading-7">{activeSectionLabel}</p>
+              </div>
           </section>
 
-          <section className="panel p-6">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="eyebrow">Section view</p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">{activeSectionLabel}</h3>
-              </div>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                A Medilo-inspired surface built on top of the existing hospital APIs, now without the
-                browser-side WebAssembly dependency.
-              </p>
-            </div>
-
+          <section className="max-w-6xl mx-auto bg-neutral-100 p-6 rounded-2xl my-12 border border-neutral-200">
             <SectionRenderer
               activeSection={state.activeSection}
               bootstrap={state.bootstrap}
@@ -2046,15 +2026,14 @@ function CreateUserCard({ onCreate }) {
   });
 
   return (
-    <article className="info-card">
-      <p className="eyebrow">Super admin controls</p>
-      <h4 className="mt-2 text-xl font-semibold text-slate-900">Create new user</h4>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Name" value={form.name} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Email" value={form.email} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, phone: event.target.value }))} placeholder="Phone" value={form.phone} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password" value={form.password} />
-        <select className="select-field" onChange={(event) => setForm((c) => ({ ...c, role: event.target.value }))} value={form.role}>
+    <article className="flex flex-col justify-center items-center gap-4">
+      <h4 className="text-xl text-black w-full text-left">Create new user</h4>
+      <div className="grid gap-4 py-4 md:grid-cols-3 w-full">
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Name" value={form.name} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Email" value={form.email} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, phone: event.target.value }))} placeholder="Phone" value={form.phone} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password" value={form.password} />
+        <select className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, role: event.target.value }))} value={form.role}>
           <option value="doctor">Doctor</option>
           <option value="nurse">Nurse</option>
           <option value="receptionist">Receptionist</option>
@@ -2062,9 +2041,9 @@ function CreateUserCard({ onCreate }) {
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, specialization: event.target.value }))} placeholder="Specialization (doctor)" value={form.specialization} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, specialization: event.target.value }))} placeholder="Specialization (doctor)" value={form.specialization} />
       </div>
-      <button className="btn-primary mt-4" onClick={() => onCreate?.(form)} type="button">
+      <button className="bg-blue-500 px-6 w-fit py-2 text-white rounded-full" onClick={() => onCreate?.(form)} type="button">
         Create user
       </button>
     </article>
@@ -2539,17 +2518,6 @@ function EmptyState({ message }) {
     <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50/90 px-5 py-10 text-center text-sm leading-7 text-slate-500">
       {message}
     </div>
-  );
-}
-
-function LogoMark() {
-  return (
-    <svg aria-hidden="true" className="h-8 w-8" viewBox="0 0 64 64">
-      <rect fill="currentColor" height="40" rx="12" width="56" x="4" y="14" />
-      <rect fill="rgba(255,255,255,0.28)" height="16" rx="7" width="20" x="22" y="8" />
-      <rect fill="#ffffff" height="24" rx="3" width="8" x="28" y="18" />
-      <rect fill="#ffffff" height="8" rx="3" width="24" x="20" y="26" />
-    </svg>
   );
 }
 
