@@ -3,7 +3,7 @@ export default function Hero(){
         <main
           className="flex flex-col lg:flex-row gap-8 items-center h-[80vh] justify-between"
         >
-          <div className="flex flex-col items-start pl-28 gap-8 max-w-2xl">
+          <div className="flex flex-col items-start gap-8 max-w-2xl">
             <div className="bg-white border! border-orange-500! px-6 py-2 rounded-full">
                 <span className="text-xs">Used by over 100+ Hospitals</span>
             </div>
@@ -14,16 +14,13 @@ export default function Hero(){
             </div> 
 
             <div className="flex gap-4">
-                <a href="/" className="shadow-lg rounded-full px-6 py-4 bg-blue-500 text-white">Watch Demo</a>
-                <a href="/" className="shadow-lg rounded-full px-6 py-4 bg-white text-black">Learn More</a>
+                <a href="/contact" className="shadow-lg rounded-full px-6 py-4 bg-blue-500 text-white">Book Appointment</a>
+                <a href="/about" className="shadow-lg rounded-full px-6 py-4 bg-white text-black">Learn More</a>
             </div>
           </div>
-          <div className="w-full rotate-90 scale-90 lg:w-1/2 flex justify-center">
-              <video
-                  src="/hero.mp4"
-                  autoPlay
-                  loop
-                  muted
+          <div className="w-full flex justify-center">
+              <img
+                  src="/bg.png"
                   className=""
               />
           </div>

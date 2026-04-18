@@ -1,8 +1,10 @@
 "use client";
-
+import Loader from "./ui/loader";
+import SessionExpiry from "./ui/sessionExpiry";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDownload, apiFetch } from "../lib/api";
+import Navbar from "../components/ui/navbar";
 import {
   ROLE_CONFIGS,
   SECTION_LABELS,
@@ -589,32 +591,13 @@ export default function DashboardPage({ role }) {
 
   if (state.loading) {
     return (
-      <div className="page-wrap py-12">
-        <div className="panel grid min-h-[60vh] place-items-center p-10">
-          <div className="space-y-3 text-center">
-            <p className="eyebrow">Preparing workspace</p>
-            <h1 className="text-3xl font-semibold text-slate-950">Loading dashboard</h1>
-            <p className="text-sm text-slate-600">
-              Connecting your role-specific hospital view and live bootstrap data.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Loader />
     );
   }
 
   if (!state.user || !state.bootstrap) {
     return (
-      <div className="page-wrap py-12">
-        <div className="panel p-10 text-center">
-          <p className="eyebrow">Session required</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-950">Unable to load dashboard</h1>
-          <p className="mt-3 text-sm text-slate-600">{state.error || "Please sign in again."}</p>
-          <button className="btn-primary mt-6" onClick={() => router.replace("/")} type="button">
-            Back to login
-          </button>
-        </div>
-      </div>
+      <SessionExpiry />
     );
   }
 
@@ -623,46 +606,65 @@ export default function DashboardPage({ role }) {
   const activeSectionLabel = SECTION_LABELS[state.activeSection];
 
   return (
-    <div className="page-wrap space-y-6 py-6 pb-14">
+    <div className="py-6 pb-14">
       <div className="grid gap-6 xl:grid-cols-[280px,1fr]">
-        <aside className="panel h-fit p-6 xl:sticky xl:top-6">
-          <div className="mb-6 flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-[22px] bg-gradient-to-br from-sky-600 to-sky-800 text-white">
-              <LogoMark />
-            </div>
-            <div>
-              <p className="eyebrow">ABC Hospital</p>
-              <h1 className="text-xl font-semibold text-slate-950">{config.label} Dashboard</h1>
-            </div>
-          </div>
+          <Navbar />
 
-          <p className="rounded-[24px] border border-sky-100 bg-sky-50/80 p-4 text-sm leading-7 text-slate-600">
-            {config.description}
-          </p>
+        <main className="">
+          <header className="max-w-6xl mx-auto">
+            <div className="bg-neutral-100 rounded-2xl px-6 py-6 text-black">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-neutral-700">
+                    {config.label} workspace
+                  </p>
+                  <h2 className="text-4xl md:text-4xl">{state.user.name}</h2>
+                </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="auth-stat">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
-                Department
-              </p>
-              <p className="mt-3 text-lg font-semibold text-slate-950">
-                {state.user.department || "General"}
-              </p>
-            </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button className="border border-blue-500 text-blue-500 px-6 py-2 rounded-full" onClick={() => refreshDashboard()} type="button">
+                    {state.refreshing ? "Refreshing..." : "Refresh"}
+                  </button>
+                  <button
+                    className="rounded-full border border-blue-500 bg-blue-500 px-6 py-2 text-white transition hover:scale-110 duration-300"
+                    onClick={handleLogout}
+                    type="button"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
 
-            <div className="auth-stat">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
-                Workspace email
-              </p>
-              <p className="mt-3 break-all text-sm font-medium text-slate-700">{state.user.email}</p>
-            </div>
-          </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center bg-blue-500 p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-white">
+                    Active section
+                  </p>
+                  <p className="text-xl text-white">{activeSectionLabel}</p>
+                </div>
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center border border-neutral-200 bg-white p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-black">
+                    Department
+                  </p>
+                  <p className="text-xl text-black">
+                    {state.user.department || "General"}
+                  </p>
+                </div>
+                <div className="rounded-2xl flex flex-col gap-4 justify-between items-center border border-neutral-200 bg-white p-4 backdrop-blur-md">
+                  <p className="text-xs uppercase font-semibold tracking-[0.26em] text-black">
+                    Workspace email
+                  </p>
+                  <p className="text-xl text-black">{state.user.email}</p>
+                </div>
+              </div>
 
-          <nav className="mt-6 space-y-2">
+              <div className="flex items-center justify-center gap-8 pt-6">
+                <span>Navigate : </span>
+                <nav className="flex justify-center items-center gap-4">
             {config.sections.map((section) => (
               <button
                 key={section}
-                className={`sidebar-link ${state.activeSection === section ? "active" : ""}`}
+                className={`bg-orange-300 text-black border px-6 py-2 flex items-center justify-center gap-2 rounded-lg ${state.activeSection === section ? "active" : ""}`}
                 onClick={() =>
                   setState((current) => ({
                     ...current,
@@ -673,93 +675,12 @@ export default function DashboardPage({ role }) {
                 type="button"
               >
                 <span>{SECTION_LABELS[section]}</span>
-                <span className="text-xs uppercase tracking-[0.24em] opacity-70">
-                  {String(config.sections.indexOf(section) + 1).padStart(2, "0")}
+                <span className="text-xs bg-black text-white px-2 py-1 rounded-full">
+                  {String(config.sections.indexOf(section) + 1).padStart(2, "")}
                 </span>
               </button>
             ))}
           </nav>
-
-          <div className="mt-6 space-y-3 rounded-[26px] bg-slate-950 px-5 py-5 text-white">
-            <p className="eyebrow text-sky-200">Live access</p>
-            <h2 className="text-xl font-semibold">{state.user.name}</h2>
-            <p className="text-sm leading-7 text-slate-300">{config.subtitle}</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="chip border-white/10 bg-white/10 text-white">
-                {formatRole(state.user.role)}
-              </span>
-              <span className="chip border-white/10 bg-white/10 text-white">
-                {unreadCount} unread alerts
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        <main className="space-y-6">
-          <header className="panel overflow-hidden p-0">
-            <div className="bg-gradient-to-r from-slate-950 via-sky-900 to-cyan-600 px-6 py-6 text-white">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-sky-100/80">
-                    {config.label} workspace
-                  </p>
-                  <h2 className="text-3xl font-semibold md:text-4xl">{state.user.name}</h2>
-                  <p className="max-w-3xl text-sm leading-7 text-sky-50/85">
-                    {state.bootstrap.summary.headline}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white outline-none"
-                    onChange={(event) => handleThemeModeChange(event.target.value)}
-                    value={state.themeMode}
-                  >
-                    <option className="text-slate-900" value="system">
-                      Theme: System
-                    </option>
-                    <option className="text-slate-900" value="light">
-                      Theme: Light
-                    </option>
-                    <option className="text-slate-900" value="dark">
-                      Theme: Dark
-                    </option>
-                  </select>
-                  <span className="rounded-full bg-white/14 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
-                    {config.subtitle}
-                  </span>
-                  <button className="btn-secondary" onClick={() => refreshDashboard()} type="button">
-                    {state.refreshing ? "Refreshing..." : "Refresh"}
-                  </button>
-                  <button
-                    className="rounded-full border border-white/16 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/16"
-                    onClick={handleLogout}
-                    type="button"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Active section
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">{activeSectionLabel}</p>
-                </div>
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Auto refresh
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">10 sec</p>
-                </div>
-                <div className="rounded-[24px] border border-white/16 bg-white/10 p-4 backdrop-blur-md">
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-sky-100/78">
-                    Workspace modules
-                  </p>
-                  <p className="mt-3 text-xl font-semibold">{config.sections.length}</p>
-                </div>
               </div>
             </div>
 
@@ -778,29 +699,21 @@ export default function DashboardPage({ role }) {
             </div>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2 xl:grid-cols-3">
             {(state.bootstrap.summary.cards || []).map((card) => (
-              <article key={card.label} className="summary-card relative overflow-hidden">
-                <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-sky-100/70 blur-2xl" />
+              <div key={card.label} className="bg-neutral-100 border flex flex-col items-center justify-center border-neutral-200 p-6 rounded-2xl relative overflow-hidden">
                 <p className="eyebrow">{card.label}</p>
                 <h3 className="mt-3 text-4xl font-semibold text-slate-950">{card.value}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{card.helper}</p>
-              </article>
+              </div>
             ))}
+            <div className="bg-blue-500 text-white border flex flex-col items-center justify-center border-neutral-200 p-6 rounded-2xl relative overflow-hidden">
+                <p className="text-neutral-100">Current Section View</p>
+                <p className="mt-3 text-2xl leading-7">{activeSectionLabel}</p>
+              </div>
           </section>
 
-          <section className="panel p-6">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="eyebrow">Section view</p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">{activeSectionLabel}</h3>
-              </div>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                A Medilo-inspired surface built on top of the existing hospital APIs, now without the
-                browser-side WebAssembly dependency.
-              </p>
-            </div>
-
+          <section className="max-w-6xl mx-auto bg-neutral-100 p-6 rounded-2xl my-12 border border-neutral-200">
             <SectionRenderer
               activeSection={state.activeSection}
               bootstrap={state.bootstrap}
@@ -2049,13 +1962,15 @@ function UsersSection({ onUserCreate, onUserDelete, onUserUpdate, user, users })
       {canCreateDelete ? <CreateUserCard onCreate={onUserCreate} /> : null}
       <div className="grid gap-4 lg:grid-cols-2">
       {users.map((item) => (
-        <article className="info-card" key={item.id}>
+        <article className="bg-white rounded-2xl p-6 border border-neutral-200" key={item.id}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="eyebrow">{formatRole(item.role)}</p>
-              <h4 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h4>
+              <div className="flex gap-4 items-center">
+                <p className="bg-blue-300 text-sm w-fit px-4 py-2 rounded-full border">{formatRole(item.role)}</p>
+                <p className="bg-emerald-300 text-sm w-fit px-4 py-2 rounded-full border">{item.department || "General"}</p>
+              </div>
+              <h1 className="mt-2 text-xl font-semibold text-slate-900">{item.name}</h1>
             </div>
-            <span className="chip">{item.department || "General"}</span>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -2068,7 +1983,7 @@ function UsersSection({ onUserCreate, onUserDelete, onUserUpdate, user, users })
             <EditDoctorCard onUpdate={onUserUpdate} target={item} />
           ) : null}
           {canCreateDelete && !["super_admin", "admin"].includes(item.role) ? (
-            <button className="btn-ghost mt-4 rounded-full border border-rose-200 bg-rose-50 text-rose-700" onClick={() => onUserDelete?.(item.id)} type="button">
+            <button className="mt-4 rounded-full px-4 py-2 bg-red-500 text-white text-sm" onClick={() => onUserDelete?.(item.id)} type="button">
               Delete user
             </button>
           ) : null}
@@ -2087,14 +2002,24 @@ function EditDoctorCard({ onUpdate, target }) {
   });
 
   return (
-    <div className="mt-4 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Edit doctor access</p>
-      <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Doctor name" value={form.name} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Doctor email" value={form.email} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="New password (optional)" value={form.password} />
+    <div className="mt-4 flex flex-col rounded-2xl border border-slate-100 bg-slate-50/85 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Edit doctor access</p>
+      <div className="py-4 flex flex-col">
+        <span>
+          Name :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Doctor name" value={form.name} />
+        </span>
+        <span>
+          Email :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Doctor email" value={form.email} />
+        </span>
+
+        <span>
+          Password :{"\t"}
+          <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password (optional)" value={form.password} />
+        </span>
       </div>
-      <button className="btn-primary mt-3" onClick={() => onUpdate?.(target.id, form)} type="button">
+      <button className="bg-black w-fit text-white text-sm px-4 py-2 rounded-full" onClick={() => onUpdate?.(target.id, form)} type="button">
         Update doctor
       </button>
     </div>
@@ -2113,15 +2038,14 @@ function CreateUserCard({ onCreate }) {
   });
 
   return (
-    <article className="info-card">
-      <p className="eyebrow">Super admin controls</p>
-      <h4 className="mt-2 text-xl font-semibold text-slate-900">Create new user</h4>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Name" value={form.name} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Email" value={form.email} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, phone: event.target.value }))} placeholder="Phone" value={form.phone} />
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password" value={form.password} />
-        <select className="select-field" onChange={(event) => setForm((c) => ({ ...c, role: event.target.value }))} value={form.role}>
+    <article className="flex flex-col justify-center items-center gap-4">
+      <h4 className="text-xl text-black w-full text-left">Create new user</h4>
+      <div className="grid gap-4 py-4 md:grid-cols-3 w-full">
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} placeholder="Name" value={form.name} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, email: event.target.value }))} placeholder="Email" value={form.email} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, phone: event.target.value }))} placeholder="Phone" value={form.phone} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, password: event.target.value }))} placeholder="Password" value={form.password} />
+        <select className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, role: event.target.value }))} value={form.role}>
           <option value="doctor">Doctor</option>
           <option value="nurse">Nurse</option>
           <option value="receptionist">Receptionist</option>
@@ -2129,9 +2053,9 @@ function CreateUserCard({ onCreate }) {
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
-        <input className="input-field" onChange={(event) => setForm((c) => ({ ...c, specialization: event.target.value }))} placeholder="Specialization (doctor)" value={form.specialization} />
+        <input className="border border-neutral-200 bg-white px-4 py-2 rounded-xl" onChange={(event) => setForm((c) => ({ ...c, specialization: event.target.value }))} placeholder="Specialization (doctor)" value={form.specialization} />
       </div>
-      <button className="btn-primary mt-4" onClick={() => onCreate?.(form)} type="button">
+      <button className="bg-blue-500 px-6 w-fit py-2 text-white rounded-full" onClick={() => onCreate?.(form)} type="button">
         Create user
       </button>
     </article>
@@ -2606,17 +2530,6 @@ function EmptyState({ message }) {
     <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50/90 px-5 py-10 text-center text-sm leading-7 text-slate-500">
       {message}
     </div>
-  );
-}
-
-function LogoMark() {
-  return (
-    <svg aria-hidden="true" className="h-8 w-8" viewBox="0 0 64 64">
-      <rect fill="currentColor" height="40" rx="12" width="56" x="4" y="14" />
-      <rect fill="rgba(255,255,255,0.28)" height="16" rx="7" width="20" x="22" y="8" />
-      <rect fill="#ffffff" height="24" rx="3" width="8" x="28" y="18" />
-      <rect fill="#ffffff" height="8" rx="3" width="24" x="20" y="26" />
-    </svg>
   );
 }
 
