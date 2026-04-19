@@ -628,7 +628,10 @@ export default function DashboardPage({ role }) {
   }
 
   if (state.loading) {
-    return <Loader />;
+    return 
+    <main className="h-screen items-center justify-center flex">
+      <Loader />
+    </main>;
   }
 
   if (!state.user || !state.bootstrap) {
@@ -658,7 +661,11 @@ export default function DashboardPage({ role }) {
             {config.sections.map((section) => (
               <button
                 key={section}
-                className={`text-black p-2 text-sm flex gap-2 ${state.activeSection === section ? "active" : ""}`}
+                className={`p-2 text-sm flex gap-2 ${
+  state.activeSection === section
+    ? "text-blue-600 border-b-2 border-blue-600"
+    : "text-black"
+}`}
                 onClick={() =>
                   setState((current) => ({
                     ...current,
@@ -1411,15 +1418,15 @@ function AppointmentBookingCard({
     reason: "",
     symptoms: "",
     patientNotes: "",
-    severity: "3",
+    gender: "",
+    age: "",
+    bloodGroup: "",
   }));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+  
   const filteredDoctors = doctors.filter((doctor) => {
-    if (!form.medicalField) {
-      return true;
-    }
-
+    if (!form.medicalField) return true;
     return (
       normalizeFieldLabel(doctor.specialization || doctor.department) ===
       normalizeFieldLabel(form.medicalField)
@@ -1431,9 +1438,7 @@ function AppointmentBookingCard({
       ...current,
       medicalField:
         current.medicalField ||
-        String(
-          doctors?.[0]?.specialization || doctors?.[0]?.department || "",
-        ).trim(),
+        String(doctors?.[0]?.specialization || doctors?.[0]?.department || "").trim(),
       doctorId: current.doctorId || String(doctors?.[0]?.id || ""),
       patientId: current.patientId || String(patients?.[0]?.id || ""),
     }));
@@ -1442,13 +1447,10 @@ function AppointmentBookingCard({
   useEffect(() => {
     if (
       form.doctorId &&
-      filteredDoctors.some(
-        (doctor) => String(doctor.id) === String(form.doctorId),
-      )
+      filteredDoctors.some((doctor) => String(doctor.id) === String(form.doctorId))
     ) {
       return;
     }
-
     setForm((current) => ({
       ...current,
       doctorId: String(filteredDoctors?.[0]?.id || ""),
@@ -1467,7 +1469,10 @@ function AppointmentBookingCard({
       reason: form.reason.trim(),
       symptoms: form.symptoms.trim(),
       patientNotes: form.patientNotes.trim(),
-      severity: Number(form.severity),
+      severity: 3,
+      gender: form.gender,
+      age: form.age ? Number(form.age) : null,
+      bloodGroup: form.bloodGroup,
     };
 
     if (user.role === "receptionist") {
@@ -1487,7 +1492,9 @@ function AppointmentBookingCard({
         reason: "",
         symptoms: "",
         patientNotes: "",
-        severity: "3",
+        gender: "",
+        age: "",
+        bloodGroup: "",
       }));
     } else {
       setMessage({
@@ -1500,254 +1507,250 @@ function AppointmentBookingCard({
   }
 
   return (
-    <article className="rounded-2xl border border-neutral-200 bg-white/80 p-6">
-  {/* Header */}
-  <div className="flex flex-wrap items-start justify-between gap-4">
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
-        Book Appointment
-      </p>
-
-      <h4 className="mt-1 text-2xl font-semibold text-gray-900 max-w-xl">
-        {user.role === "receptionist"
-          ? "Create a patient appointment from the front desk"
-          : "Book your next doctor visit"}
-      </h4>
-    </div>
-
-    <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-      Live booking
-    </span>
-  </div>
-
-  {/* Message */}
-  {message.text && (
-    <div
-      className={`mt-5 rounded-2xl border px-4 py-3 text-sm ${
-        message.type === "error"
-          ? "border-red-200 bg-red-50 text-red-700"
-          : "border-emerald-200 bg-emerald-50 text-emerald-700"
-      }`}
-    >
-      {message.text}
-    </div>
-  )}
-
-  <form className="mt-6 space-y-8" onSubmit={handleSubmit}>
-
-  {/* 🔹 Section: Appointment Details */}
-  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-    <p className="text-xs uppercase tracking-[0.2em] text-blue-500 font-semibold mb-4">
-      Appointment Details
-    </p>
-
-    <div className="grid gap-4 md:grid-cols-2">
-
-      {/* Medical Field */}
-      <div className="space-y-2">
-        <label className="text-xs text-gray-500">Medical field</label>
-        <select
-          className="input-field focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
-          value={form.medicalField}
-          onChange={(e) =>
-            setForm((c) => ({ ...c, medicalField: e.target.value }))
-          }
-        >
-          <option value="">Select field</option>
-          {specializationOptions.map((field) => (
-            <option key={field} value={field}>
-              {field}
-            </option>
-          ))}
-        </select>
+    <article className="rounded-xl border border-neutral-200 bg-white">
+      {/* Header */}
+      <div className="border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Patient Intake Form
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Complete all sections below
+            </p>
+          </div>
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            New Visit
+          </span>
+        </div>
       </div>
 
-      {/* Patient (Receptionist only) */}
-      {user.role === "receptionist" && (
-        <div className="space-y-2">
-          <label className="text-xs text-gray-500">Patient</label>
-          <select
-            className="input-field focus:ring-2 focus:ring-blue-500/20"
-            value={form.patientId}
-            onChange={(e) =>
-              setForm((c) => ({ ...c, patientId: e.target.value }))
-            }
-          >
-            <option value="">Select patient</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+      {/* Alert */}
+      {message.text && (
+        <div className="mx-6 mt-4">
+          <div className={`rounded-lg border px-4 py-3 text-sm ${
+            message.type === "error"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}>
+            {message.text}
+          </div>
         </div>
       )}
 
-      {/* Doctor */}
-      <div className="space-y-2">
-        <label className="text-xs text-gray-500">Doctor</label>
-        <select
-          className="input-field focus:ring-2 focus:ring-blue-500/20"
-          value={form.doctorId}
-          onChange={(e) =>
-            setForm((c) => ({ ...c, doctorId: e.target.value }))
-          }
-        >
-          <option value="">Select doctor</option>
-          {filteredDoctors.map((doc) => (
-            <option key={doc.id} value={doc.id}>
-              {doc.name} {doc.specialization && `- ${doc.specialization}`}
-            </option>
-          ))}
-        </select>
-      </div>
+      <form className="p-6" onSubmit={handleSubmit}>
+        {/* Section 1: Visit Information */}
+        <div className="mb-6">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
+            1. Visit Information
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Department *
+              </label>
+              <select
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={form.medicalField}
+                onChange={(e) => setForm((c) => ({ ...c, medicalField: e.target.value }))}
+              >
+                <option value="">Select department</option>
+                {specializationOptions.map((field) => (
+                  <option key={field} value={field}>{field}</option>
+                ))}
+              </select>
+            </div>
 
-      
+            {user.role === "receptionist" && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Patient *
+                </label>
+                <select
+                  required
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  value={form.patientId}
+                  onChange={(e) => setForm((c) => ({ ...c, patientId: e.target.value }))}
+                >
+                  <option value="">Select patient</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-<div className="space-y-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Physician *
+              </label>
+              <select
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={form.doctorId}
+                onChange={(e) => setForm((c) => ({ ...c, doctorId: e.target.value }))}
+              >
+                <option value="">Select physician</option>
+                {filteredDoctors.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    Dr. {doc.name} {doc.specialization ? `(${doc.specialization})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-  <label className="text-xs text-gray-500">Date & Time</label>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Appointment Date & Time *
+              </label>
+              <DatePicker
+                selected={form.appointmentDate ? new Date(form.appointmentDate) : null}
+                onChange={(date) => setForm((c) => ({ ...c, appointmentDate: date }))}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="MMMM d, yyyy h:mm aa"
+                minDate={new Date()}
+                placeholderText="Select date & time"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
 
-  <DatePicker
-    selected={form.appointmentDate ? new Date(form.appointmentDate) : null}
-    onChange={(date) =>
-      setForm((c) => ({ ...c, appointmentDate: date }))
-    }
-    showTimeSelect
-    timeFormat="HH:mm"
-    timeIntervals={15}
-    dateFormat="MMMM d, yyyy h:mm aa"
-    minDate={new Date()}
-    placeholderText="Select date & time"
-    className="w-full px-4 py-3 text-sm"
-  />
+        {/* Section 2: Patient Demographics */}
+        <div className="mb-6 border-t border-slate-100 pt-6">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
+            2. Patient Demographics
+          </h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Gender *
+              </label>
+              <select
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={form.gender}
+                onChange={(e) => setForm((c) => ({ ...c, gender: e.target.value }))}
+              >
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+              </select>
+            </div>
 
-</div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Age
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="150"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Years"
+                value={form.age}
+                onChange={(e) => setForm((c) => ({ ...c, age: e.target.value }))}
+              />
+            </div>
 
-    </div>
-  </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Blood Group
+              </label>
+              <select
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={form.bloodGroup}
+                onChange={(e) => setForm((c) => ({ ...c, bloodGroup: e.target.value }))}
+              >
+                <option value="">Select</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-  {/* 🔹 Section: Medical Context */}
-  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-    <p className="text-xs uppercase tracking-[0.2em] text-blue-500 font-semibold mb-4">
-      Medical Context
-    </p>
+        {/* Section 3: Clinical Details */}
+        <div className="mb-6 border-t border-slate-100 pt-6">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
+            3. Clinical Details
+          </h3>
+          
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Chief Complaint *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Reason for visit"
+              value={form.reason}
+              onChange={(e) => setForm((c) => ({ ...c, reason: e.target.value }))}
+            />
+          </div>
 
-    {/* Severity (Upgraded UI) */}
-    <div className="space-y-2">
-      <label className="text-xs text-gray-500">Severity</label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Presenting Symptoms
+              </label>
+              <textarea
+                rows={3}
+                maxLength={200}
+                className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Current symptoms and duration"
+                value={form.symptoms}
+                onChange={(e) => setForm((c) => ({ ...c, symptoms: e.target.value }))}
+              />
+              <div className="mt-1 text-right text-xs text-slate-400">
+                {form.symptoms?.length || 0}/200
+              </div>
+            </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Low", value: "1", style: "bg-green-50 border-green-200 text-green-700" },
-          { label: "Medium", value: "3", style: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-          { label: "Critical", value: "5", style: "bg-red-50 border-red-200 text-red-700" },
-        ].map((item) => (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Medical History & Notes
+              </label>
+              <textarea
+                rows={3}
+                maxLength={200}
+                className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Allergies, medications, conditions"
+                value={form.patientNotes}
+                onChange={(e) => setForm((c) => ({ ...c, patientNotes: e.target.value }))}
+              />
+              <div className="mt-1 text-right text-xs text-slate-400">
+                {form.patientNotes?.length || 0}/200
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="flex items-center justify-between border-t border-slate-100 pt-6">
+          <p className="text-xs text-slate-500">* Required fields</p>
           <button
-            key={item.value}
-            type="button"
-            onClick={() =>
-              setForm((c) => ({ ...c, severity: item.value }))
-            }
-            className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-              form.severity === item.value
-                ? item.style
-                : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
+            disabled={busy}
+            type="submit"
+            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
-            {item.label}
+            {busy ? "Submitting..." : "Submit Form"}
           </button>
-        ))}
-      </div>
-    </div>
-
-    {/* Reason */}
-    <div className="mt-4 space-y-2">
-      <label className="text-xs text-gray-500">Reason</label>
-      <input
-       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all
-        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
-        group-hover:border-gray-300"
-        placeholder="Consultation, follow-up, checkup..."
-        value={form.reason}
-        onChange={(e) =>
-          setForm((c) => ({ ...c, reason: e.target.value }))
-        }
-      />
-    </div>
-
-    <div className="grid gap-4 md:grid-cols-2">
-
-  {/* Symptoms */}
-  <div className="group relative">
-    <label className="text-xs text-gray-500">Symptoms</label>
-
-    <div className="mt-1 relative">
-      <textarea
-        rows={4}
-        maxLength={200}
-        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all
-        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
-        group-hover:border-gray-300"
-        placeholder="e.g. Chest pain, dizziness, shortness of breath..."
-        value={form.symptoms}
-        onChange={(e) =>
-          setForm((c) => ({ ...c, symptoms: e.target.value }))
-        }
-      />
-
-      {/* Character count */}
-      <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">
-        {form.symptoms?.length || 0}/200
-      </span>
-    </div>
-  </div>
-
-  {/* Patient Notes */}
-  <div className="group relative">
-    <label className="text-xs text-gray-500">Patient Notes</label>
-
-    <div className="mt-1 relative">
-      <textarea
-        rows={4}
-        maxLength={200}
-        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all
-        focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
-        group-hover:border-gray-300"
-        placeholder="Any additional context, history, or remarks..."
-        value={form.patientNotes}
-        onChange={(e) =>
-          setForm((c) => ({ ...c, patientNotes: e.target.value }))
-        }
-      />
-
-      {/* Character count */}
-      <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">
-        {form.patientNotes?.length || 0}/200
-      </span>
-    </div>
-  </div>
-
-</div>
-  </div>
-
-  {/* 🔹 CTA */}
-  <div className="flex justify-between items-center">
-    <p className="text-xs text-gray-400">
-      Make sure all required fields are filled correctly
-    </p>
-
-    <button
-      disabled={busy}
-      type="submit"
-      className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium shadow-md hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] transition-all"
-    >
-      {busy ? "Booking..." : "Book Appointment"}
-    </button>
-  </div>
-
-</form>
-</article>
+        </div>
+      </form>
+    </article>
   );
 }
 
