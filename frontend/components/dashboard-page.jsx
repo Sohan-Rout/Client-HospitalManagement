@@ -2255,7 +2255,7 @@ function AppointmentCard({
   const isUpdatingSeverity = processingSeverityKeys.includes(severityKey);
 
   return (
-    <article className="info-card">
+    <div className="info-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="eyebrow">{appointment.medicalField || "general"}</p>
@@ -2307,7 +2307,7 @@ function AppointmentCard({
           onChange={(severity) => onSeverityChange?.(appointment.id, severity)}
         />
       ) : null}
-    </article>
+    </div>
   );
 }
 
