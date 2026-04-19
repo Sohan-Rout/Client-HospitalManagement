@@ -1924,122 +1924,166 @@ function ChatSection({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[320px,1fr]">
-      <aside className="space-y-3 rounded-[24px] border border-slate-200 bg-white/95 p-3">
-        <div className="rounded-2xl bg-emerald-50 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-            Conversations
-          </p>
-          <p className="mt-1 text-sm text-emerald-900">
-            {chats.length} active {chats.length > 1 ? "patients" : "patient"}
-          </p>
-        </div>
-        {chats.map((thread) => {
-          const peer = user.role === "doctor" ? thread.patient : thread.doctor;
-          const firstInitial = peer.name?.slice(0, 1)?.toUpperCase() || "?";
+    <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
 
-          return (
-            <button
-              key={thread.id}
-              className={`w-full rounded-[20px] border p-3 text-left transition ${
-                selectedChat?.id === thread.id
-                  ? "border-emerald-200 bg-emerald-50/70"
-                  : "border-slate-200 bg-white/95 hover:border-emerald-100 hover:bg-slate-50"
-              }`}
-              onClick={() => onChatSelect(thread.id)}
-              type="button"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-                  {firstInitial}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {peer.name}
-                    </p>
-                    <p className="shrink-0 text-[11px] text-slate-500">
-                      {formatDateTime(thread.updatedAt)}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    {user.role === "doctor"
-                      ? "Patient"
-                      : peer.specialization || "Doctor"}
-                  </p>
-                  <p className="mt-2 line-clamp-1 text-sm leading-6 text-slate-600">
-                    {thread.latestMessage || "No messages yet."}
-                  </p>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </aside>
+  {/* 🔹 Sidebar */}
+  <aside className="rounded-3xl border border-gray-100 bg-white/80 backdrop-blur-xl p-4 shadow-sm">
 
-      <div className="info-card border-emerald-100">
-        <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div>
-            <p className="eyebrow">Active thread</p>
-            <h4 className="mt-2 text-xl font-semibold text-slate-900">
-              {selectedChat
-                ? user.role === "doctor"
-                  ? selectedChat.patient.name
-                  : selectedChat.doctor.name
-                : "Conversation"}
-            </h4>
-            <p className="mt-1 text-xs text-slate-500">
-              WhatsApp-style quick conversation flow
-            </p>
-          </div>
-          {selectedChat?.doctor?.specialization ? (
-            <span className="chip border-emerald-200 bg-emerald-50 text-emerald-800">
-              {selectedChat.doctor.specialization}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-[20px] bg-slate-50 p-3 pr-2">
-          {selectedChat?.messages?.map((message) => {
-            const mine = message.sender.id === user.id;
-
-            return (
-              <div
-                key={message.id}
-                className={`max-w-[85%] rounded-[20px] px-4 py-3 text-sm leading-7 shadow-sm ${
-                  mine
-                    ? "ml-auto bg-emerald-500 text-white"
-                    : "border border-slate-200 bg-white text-slate-700"
-                }`}
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] opacity-70">
-                  {mine ? "You" : message.sender.name}
-                </p>
-                <p className="mt-1">{message.body}</p>
-                <p className="mt-2 text-[11px] opacity-70">
-                  {formatDateTime(message.createdAt)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        <form className="mt-5 space-y-3" onSubmit={onSendChat}>
-          <textarea
-            className="textarea-field border-emerald-200 focus-visible:ring-emerald-500/30"
-            onChange={(event) => onChatBodyChange(event.target.value)}
-            placeholder="Type a message..."
-            value={chatBody}
-          />
-          <button
-            className="btn-primary bg-emerald-600 hover:bg-emerald-500"
-            type="submit"
-          >
-            Send message
-          </button>
-        </form>
-      </div>
+    {/* Header */}
+    <div className="mb-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-emerald-100 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+        Conversations
+      </p>
+      <p className="mt-1 text-sm text-emerald-900">
+        {chats.length} active {chats.length > 1 ? "patients" : "patient"}
+      </p>
     </div>
+
+    {/* Chat List */}
+    <div className="space-y-2">
+      {chats.map((thread) => {
+        const peer = user.role === "doctor" ? thread.patient : thread.doctor;
+        const firstInitial = peer.name?.slice(0, 1)?.toUpperCase() || "?";
+        const isActive = selectedChat?.id === thread.id;
+
+        return (
+          <button
+            key={thread.id}
+            onClick={() => onChatSelect(thread.id)}
+            type="button"
+            className={`w-full text-left rounded-2xl p-3 transition-all duration-200
+              ${
+                isActive
+                  ? "bg-emerald-50 border border-emerald-100 shadow-sm"
+                  : "hover:bg-gray-50"
+              }
+            `}
+          >
+            <div className="flex items-start gap-3">
+
+              {/* Avatar */}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                {firstInitial}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {peer.name}
+                  </p>
+                  <span className="text-[11px] text-gray-400">
+                    {formatDateTime(thread.updatedAt)}
+                  </span>
+                </div>
+
+                <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-gray-400">
+                  {user.role === "doctor"
+                    ? "Patient"
+                    : peer.specialization || "Doctor"}
+                </p>
+
+                <p className="mt-1 truncate text-sm text-gray-600">
+                  {thread.latestMessage || "No messages yet."}
+                </p>
+              </div>
+
+            </div>
+          </button>
+        );
+      })}
+    </div>
+
+  </aside>
+
+  {/* 🔹 Chat Panel */}
+  <div className="flex flex-col rounded-3xl border border-gray-100 bg-white/80 backdrop-blur-xl shadow-sm overflow-hidden">
+
+    {/* Header */}
+    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-500 font-semibold">
+          Active Thread
+        </p>
+        <h4 className="text-lg font-semibold text-gray-900">
+          {selectedChat
+            ? user.role === "doctor"
+              ? selectedChat.patient.name
+              : selectedChat.doctor.name
+            : "Conversation"}
+        </h4>
+      </div>
+
+      {selectedChat?.doctor?.specialization && (
+        <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+          {selectedChat.doctor.specialization}
+        </span>
+      )}
+    </div>
+
+    {/* Messages */}
+    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50/60">
+
+      {selectedChat?.messages?.map((message) => {
+        const mine = message.sender.id === user.id;
+
+        return (
+          <div
+            key={message.id}
+            className={`flex ${mine ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm transition-all
+                ${
+                  mine
+                    ? "bg-green-600 text-white"
+                    : "bg-white border border-gray-200 text-gray-700"
+                }
+              `}
+            >
+              <p className="text-[10px] uppercase opacity-60 mb-1">
+                {mine ? "You" : message.sender.name}
+              </p>
+
+              <p>{message.body}</p>
+
+              <p className="mt-2 text-[10px] opacity-60 text-right">
+                {formatDateTime(message.createdAt)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+
+    </div>
+
+    {/* Input */}
+    <form
+      onSubmit={onSendChat}
+      className="border-t border-gray-100 p-4 bg-white"
+    >
+      <div className="flex items-end gap-3">
+
+        <textarea
+          value={chatBody}
+          onChange={(e) => onChatBodyChange(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400"
+        />
+
+        <button
+          type="submit"
+          className="px-5 py-2.5 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white text-md shadow-md hover:shadow-lg hover:scale-[1.02] transition-all"
+        >
+          Send
+        </button>
+
+      </div>
+    </form>
+
+  </div>
+
+</div>
   );
 }
 
@@ -2056,101 +2100,124 @@ function PrescriptionsSection({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {prescriptions.map((prescription) => (
-        <article className="info-card" key={prescription.id}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Prescription #{prescription.id}</p>
-              <h4 className="mt-2 text-xl font-semibold text-slate-900">
-                {prescription.title || "Prescription"}
-              </h4>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="chip">v{prescription.currentVersionNumber}</span>
-              {user.role === "patient" ? (
-                <>
-                  <button
-                    className="btn-ghost rounded-full border border-slate-200 bg-white"
-                    disabled={downloadingPrescriptionKeys.includes(
-                      `${prescription.id}:excel`,
-                    )}
-                    onClick={() =>
-                      onPrescriptionDownload?.(
-                        prescription.id,
-                        "excel",
-                        prescription.title,
-                      )
-                    }
-                    type="button"
-                  >
-                    {downloadingPrescriptionKeys.includes(
-                      `${prescription.id}:excel`,
-                    )
-                      ? "Downloading Excel..."
-                      : "Download Excel"}
-                  </button>
-                  <button
-                    className="btn-ghost rounded-full border border-slate-200 bg-white"
-                    disabled={downloadingPrescriptionKeys.includes(
-                      `${prescription.id}:pdf`,
-                    )}
-                    onClick={() =>
-                      onPrescriptionDownload?.(
-                        prescription.id,
-                        "pdf",
-                        prescription.title,
-                      )
-                    }
-                    type="button"
-                  >
-                    {downloadingPrescriptionKeys.includes(
-                      `${prescription.id}:pdf`,
-                    )
-                      ? "Downloading PDF..."
-                      : "Download PDF"}
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div>
+    <div className="grid gap-6 lg:grid-cols-2">
+  {prescriptions.map((prescription) => (
+    <article
+      key={prescription.id}
+      className="rounded-3xl border border-gray-100 bg-white/80 backdrop-blur-xl p-6 shadow-sm hover:shadow-xl transition-all"
+    >
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <InfoRow label="Patient" value={prescription.patient.name} />
-            <InfoRow label="Doctor" value={prescription.doctor.name} />
-            <InfoRow
-              label="Visit date"
-              value={formatDateTime(prescription.appointmentDate)}
-            />
-            <InfoRow label="Reason" value={prescription.reason} />
-          </div>
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
 
-          <div className="mt-5 space-y-3">
-            {(prescription.versions || []).slice(0, 3).map((version) => (
-              <div
-                key={version.id}
-                className="rounded-[22px] border border-slate-100 bg-white/90 px-4 py-4"
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
+            Prescription #{prescription.id}
+          </p>
+          <h4 className="mt-1 text-xl font-semibold text-gray-900">
+            {prescription.title || "Prescription"}
+          </h4>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+
+          <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+            v{prescription.currentVersionNumber}
+          </span>
+
+          {user.role === "patient" && (
+            <>
+              <button
+                disabled={downloadingPrescriptionKeys.includes(`${prescription.id}:excel`)}
+                onClick={() =>
+                  onPrescriptionDownload?.(
+                    prescription.id,
+                    "excel",
+                    prescription.title
+                  )
+                }
+                type="button"
+                className="text-xs px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 transition"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-slate-900">
-                    Version {version.versionNumber}
-                  </p>
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                    {formatDate(version.createdAt)}
-                  </p>
-                </div>
-                <p className="mt-3 text-sm leading-7 text-slate-700">
-                  {version.changeSummary || "No change summary."}
+                {downloadingPrescriptionKeys.includes(`${prescription.id}:excel`)
+                  ? "Downloading..."
+                  : "Excel"}
+              </button>
+
+              <button
+                disabled={downloadingPrescriptionKeys.includes(`${prescription.id}:pdf`)}
+                onClick={() =>
+                  onPrescriptionDownload?.(
+                    prescription.id,
+                    "pdf",
+                    prescription.title
+                  )
+                }
+                type="button"
+                className="text-xs px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 transition"
+              >
+                {downloadingPrescriptionKeys.includes(`${prescription.id}:pdf`)
+                  ? "Downloading..."
+                  : "PDF"}
+              </button>
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 text-sm">
+        <InfoRow label="Patient" value={prescription.patient.name} />
+        <InfoRow label="Doctor" value={prescription.doctor.name} />
+        <InfoRow
+          label="Visit date"
+          value={formatDateTime(prescription.appointmentDate)}
+        />
+        <InfoRow label="Reason" value={prescription.reason} />
+      </div>
+
+      {/* Versions Timeline */}
+      <div className="mt-6 border-t border-gray-100 pt-5 space-y-4">
+
+        {(prescription.versions || []).slice(0, 3).map((version, index) => (
+          <div key={version.id} className="relative pl-6">
+
+            {/* Timeline line */}
+            {index !== 2 && (
+              <div className="absolute left-[9px] top-6 h-full w-[2px] bg-gray-200"></div>
+            )}
+
+            {/* Dot */}
+            <div className="absolute left-0 top-1.5 h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow"></div>
+
+            {/* Card */}
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  Version {version.versionNumber}
                 </p>
-                <p className="mt-2 text-sm leading-7 text-slate-500">
-                  {version.diagnosis || "Diagnosis not provided."}
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400">
+                  {formatDate(version.createdAt)}
                 </p>
               </div>
-            ))}
+
+              <p className="mt-2 text-sm text-gray-700 leading-6">
+                {version.changeSummary || "No change summary."}
+              </p>
+
+              <p className="mt-1 text-sm text-gray-500 leading-6">
+                {version.diagnosis || "Diagnosis not provided."}
+              </p>
+            </div>
           </div>
-        </article>
-      ))}
-    </div>
+        ))}
+      </div>
+    </article>
+  ))}
+</div>
   );
 }
 
@@ -2510,50 +2577,84 @@ function ReportsSection({ reports }) {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {(reports.highlights || []).map((item) => (
-          <article className="summary-card" key={item.label}>
-            <p className="eyebrow">{item.label}</p>
-            <h4 className="mt-3 text-4xl font-semibold text-slate-950">
-              {item.value}
-            </h4>
-          </article>
-        ))}
-      </div>
+    <div className="space-y-8">
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {groups.map((group) => (
-          <article className="info-card" key={group.title}>
-            <p className="eyebrow">Analytics</p>
-            <h4 className="mt-2 text-xl font-semibold text-slate-900">
-              {group.title}
-            </h4>
+  {/* 🔹 Highlights */}
+  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+    {(reports.highlights || []).map((item) => (
+      <article
+        key={item.label}
+        className="relative overflow-hidden rounded-3xl border border-neutral-200 bg-white p-4 transition-all"
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
+          {item.label}
+        </p>
 
-            <div className="mt-5 space-y-4">
-              {group.items.map((item) => (
-                <div key={item.label}>
-                  <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
-                    <span>{item.label}</span>
-                    <span className="font-semibold text-slate-900">
-                      {item.value}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div
-                      className="h-2 rounded-full bg-gradient-to-r from-sky-500 to-cyan-400"
-                      style={{
-                        width: `${Math.max(12, Math.min(100, item.value * 12))}%`,
-                      }}
-                    />
-                  </div>
+        <h4 className="mt-3 text-3xl font-bold text-gray-900">
+          {item.value}
+        </h4>
+      </article>
+    ))}
+  </div>
+
+  {/* Analytics Groups */}
+  <div className="grid gap-6 lg:grid-cols-2">
+    {groups.map((group) => (
+      <article
+        key={group.title}
+        className="rounded-2xl border border-neutral-200 bg-white/80 p-4 transition-all"
+      >
+
+        {/* Header */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
+            Analytics
+          </p>
+          <h4 className="mt-1 text-xl text-gray-900">
+            {group.title}
+          </h4>
+        </div>
+
+        {/* Items */}
+        <div className="space-y-5">
+          {group.items.map((item) => {
+            const width = Math.max(10, Math.min(100, item.value * 12));
+
+            return (
+              <div key={item.label} className="group">
+
+                {/* Label Row */}
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-gray-600">
+                    {item.label}
+                  </span>
+                  <span className="font-semibold text-gray-900">
+                    {item.value}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
+
+                {/* Progress */}
+                <div className="relative h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                  
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-700 ease-out group-hover:brightness-110"
+                    style={{ width: `${width}%` }}
+                  />
+
+                  {/* glow effect */}
+                  <div
+                    className="absolute top-0 h-full w-6 bg-white/30 blur-md"
+                    style={{ left: `${width - 5}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </article>
+    ))}
+  </div>
+</div>
   );
 }
 
@@ -2702,70 +2803,107 @@ function AppointmentCard({
   const isUpdatingSeverity = processingSeverityKeys.includes(severityKey);
 
   return (
-    <div className="info-card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="eyebrow">{appointment.medicalField || "general"}</p>
-          <h4 className="mt-2 text-xl font-semibold text-slate-900">
-            {appointment.reason}
-          </h4>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`status-pill ${APPOINTMENT_STYLES[appointment.status] || "bg-slate-100 text-slate-700"}`}
-          >
-            {appointment.status.replace(/_/g, " ")}
-          </span>
-          {appointment.queueRank ? (
-            <span className="chip">Queue #{appointment.queueRank}</span>
-          ) : null}
-        </div>
-      </div>
+    <div className="relative rounded-2xl border border-neutral-200 bg-white/80 p-6 transition-all">
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <InfoRow label="Patient" value={appointment.patient.name} />
-        <InfoRow label="Doctor" value={appointment.doctor.name} />
-        <InfoRow
-          label="Visit time"
-          value={formatDateTime(appointment.appointmentDate)}
-        />
-        <InfoRow label="Severity" value={`Level ${appointment.severity}`} />
-      </div>
+  {/* Header */}
+  <div className="flex flex-wrap items-start justify-between gap-4">
 
-      {detailed ? (
-        <div className="mt-5 rounded-[22px] border border-slate-100 bg-white/90 p-4">
-          <p className="text-sm leading-7 text-slate-600">
-            <span className="font-semibold text-slate-900">Symptoms:</span>{" "}
-            {appointment.symptoms || "No symptoms provided."}
-          </p>
-          <p className="mt-2 text-sm leading-7 text-slate-600">
-            <span className="font-semibold text-slate-900">Notes:</span>{" "}
-            {appointment.patientNotes ||
-              appointment.decisionNotes ||
-              "No notes added."}
-          </p>
-        </div>
-      ) : null}
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
+        {appointment.medicalField || "General"}
+      </p>
 
-      {canEditSeverity ? (
-        <button
-          className="btn-secondary mt-4"
-          onClick={() => onOpenChatFromAppointment?.(appointment)}
-          type="button"
-        >
-          Open chat with {appointment.patient.name}
-        </button>
-      ) : null}
+      <h4 className="mt-1 text-xl font-semibold text-gray-900">
+        {appointment.reason}
+      </h4>
+    </div>
 
-      {canEditSeverity ? (
+    {/* Status */}
+    <div className="flex flex-wrap items-center gap-2">
+
+      <span
+        className={`text-xs font-medium px-3 py-1 rounded-full border ${APPOINTMENT_STYLES[appointment.status] || "bg-gray-100 text-gray-600 border-gray-200"}`}
+      >
+        {appointment.status.replace(/_/g, " ")}
+      </span>
+
+      {appointment.queueRank && (
+        <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+          Queue #{appointment.queueRank}
+        </span>
+      )}
+
+    </div>
+
+  </div>
+
+  {/* Info Grid */}
+  <div className="mt-5 grid gap-4 sm:grid-cols-2 text-sm">
+    <InfoRow label="Patient" value={appointment.patient.name} />
+    <InfoRow label="Doctor" value={appointment.doctor.name} />
+    <InfoRow
+      label="Visit time"
+      value={formatDateTime(appointment.appointmentDate)}
+    />
+    <InfoRow
+      label="Severity"
+      value={
+        <span className="inline-flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-red-500"></span>
+          Level {appointment.severity}
+        </span>
+      }
+    />
+  </div>
+
+  {/* Details */}
+  {detailed && (
+    <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 space-y-2">
+      
+      <p className="text-sm text-gray-600 leading-6">
+        <span className="font-semibold text-gray-900">Symptoms:</span>{" "}
+        {appointment.symptoms || "No symptoms provided."}
+      </p>
+
+      <p className="text-sm text-gray-600 leading-6">
+        <span className="font-semibold text-gray-900">Notes:</span>{" "}
+        {appointment.patientNotes ||
+          appointment.decisionNotes ||
+          "No notes added."}
+      </p>
+
+    </div>
+  )}
+
+  {/* Actions */}
+  {(canEditSeverity) && (
+    <div className="mt-6 border-t border-gray-100 pt-5 space-y-4">
+
+      {/* Chat */}
+      <button
+        onClick={() => onOpenChatFromAppointment?.(appointment)}
+        type="button"
+        className="w-full text-sm font-medium px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all"
+      >
+        Open chat with {appointment.patient.name}
+      </button>
+
+      {/* Severity Control */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-4">
         <SeverityControl
           currentSeverity={appointment.severity}
           isBusy={isUpdatingSeverity}
           label="Doctor severity control"
-          onChange={(severity) => onSeverityChange?.(appointment.id, severity)}
+          onChange={(severity) =>
+            onSeverityChange?.(appointment.id, severity)
+          }
         />
-      ) : null}
+      </div>
+
     </div>
+  )}
+
+</div>
   );
 }
 
@@ -2829,45 +2967,77 @@ function SeverityControl({ currentSeverity, isBusy, label, onChange }) {
   const activeTier = getSeverityTierKey(currentSeverity);
 
   return (
-    <div className="mt-5 rounded-[22px] border border-slate-100 bg-slate-50/85 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-          {label}
-        </p>
-        <span className={`status-pill ${severityClass(currentSeverity)}`}>
-          {formatSeverityTierLabel(currentSeverity)}
-        </span>
-      </div>
+    <div className="">
+  {/* Header */}
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-500">
+      {label}
+    </p>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-5">
-        {SEVERITY_PRESETS.map((preset) => {
-          const isActive = activeTier === preset.key;
+    <span
+      className={`text-xs font-medium px-3 py-1 rounded-full border ${severityClass(currentSeverity)}`}
+    >
+      {formatSeverityTierLabel(currentSeverity)}
+    </span>
+  </div>
 
-          return (
-            <button
-              key={preset.key}
-              className={`rounded-[18px] border px-4 py-3 text-left text-sm font-semibold transition ${
-                isActive ? preset.activeClass : preset.idleClass
-              } ${isBusy ? "opacity-70" : ""}`}
-              disabled={isBusy || isActive}
-              onClick={() => onChange?.(preset.value)}
-              type="button"
-            >
-              <span className="block">{preset.label}</span>
-              <span className="mt-1 block text-xs font-medium opacity-75">
-                {preset.range}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+  {/* Options */}
+  <div className="mt-5 grid gap-3 sm:grid-cols-5">
+    {SEVERITY_PRESETS.map((preset) => {
+      const isActive = activeTier === preset.key;
 
-      <p className="mt-3 text-xs leading-6 text-slate-500">
-        {isBusy
-          ? "Saving the new severity level..."
-          : "Doctors can update patient severity directly from the dashboard."}
-      </p>
-    </div>
+      return (
+        <button
+          key={preset.key}
+          disabled={isBusy || isActive}
+          onClick={() => onChange?.(preset.value)}
+          type="button"
+          className={`group relative rounded-2xl border px-4 py-3 text-left transition-all duration-300
+            ${
+              isActive
+                ? `${preset.activeClass} shadow-xs scale-[1.02]`
+                : `${preset.idleClass} hover:shadow-xs hover:-translate-y-0.5`
+            }
+            ${isBusy ? "opacity-60" : ""}
+          `}
+        >
+
+          {/* Label */}
+          <span className="block text-xs font-semibold">
+            {preset.label}
+          </span>
+
+          {/* Range */}
+          <span className="mt-1 block text-xs opacity-70">
+            {preset.range}
+          </span>
+
+          {/* Active indicator */}
+          {isActive && (
+            <div className="absolute inset-0 rounded-2xl pointer-events-none"></div>
+          )}
+
+        </button>
+      );
+    })}
+  </div>
+
+  {/* Footer */}
+  <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+    <span>
+      {isBusy
+        ? "Updating severity..."
+        : "Select severity level based on patient condition"}
+    </span>
+
+    {!isBusy && (
+      <span className="text-blue-500 font-medium">
+        {formatSeverityTierLabel(currentSeverity)}
+      </span>
+    )}
+  </div>
+
+</div>
   );
 }
 
