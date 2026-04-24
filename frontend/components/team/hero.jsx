@@ -25,21 +25,15 @@ const Doctor = [
     }
 ]
 
-export default function Team() {
+export default function TeamHero() {
   return (
     <main>
       <div className="flex justify-between items-end py-4">
         <div className="flex flex-col gap-2">
-          <span className="text-lg">Our Team</span>
-          <h1 className="text-3xl w-sm">
-            Meet Our Expert Team in Providing Advanced Care
+          <h1 className="text-4xl w-sm">
+            The heart of Dcotera
           </h1>
-        </div>
-
-        <div>
-          <a href="/team" className="bg-blue-500 py-3 px-4 rounded-full text-white">
-            All Members
-          </a>
+          <span className="text-lg w-sm">Meet the passionate team committed to guiding your journey to better health</span>
         </div>
       </div>
 

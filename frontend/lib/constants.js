@@ -19,10 +19,6 @@ export const DEMO_CREDENTIALS = {
     identifier: "receptionist@abchospital.com",
     password: "Reception@123"
   },
-  staff: {
-    identifier: "staff@abchospital.com",
-    password: "Staff@123"
-  },
   patient: {
     identifier: "patient@abchospital.com",
     password: "Patient@123"

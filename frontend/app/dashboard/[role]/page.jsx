@@ -14,6 +14,12 @@ export function generateStaticParams() {
   ];
 }
 
-export default function RoleDashboardPage({ params }) {
-  return <DashboardPage role={params.role} />;
+export default async function RoleDashboardPage({ params }) {
+  const { role } = await params;
+
+  if (!role) {
+    return <div>Invalid role</div>;
+  }
+
+  return <DashboardPage role={role} />;
 }
