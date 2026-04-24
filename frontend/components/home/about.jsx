@@ -14,7 +14,7 @@ export default function About() {
 
           <a
             className="bg-blue-500 w-fit text-xl px-6 py-3 text-white rounded-full"
-            href="/"
+            href="/about"
           >
             Read More
           </a>
